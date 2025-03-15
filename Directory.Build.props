@@ -1,0 +1,21 @@
+﻿<Project>
+    <PropertyGroup>
+        <LangVersion>13</LangVersion>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <RestoreAdditionalProjectSources>
+            https://api.nuget.org/v3/index.json;
+            https://nuget.bepinex.dev/v3/index.json;
+            https://nuget.samboy.dev/v3/index.json
+        </RestoreAdditionalProjectSources>
+        <SolutionDir>$(MSBuildThisFileDirectory)</SolutionDir>
+        <ILRepackTargetsFile>$(SolutionDir)ILRepack.targets</ILRepackTargetsFile>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.40">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>

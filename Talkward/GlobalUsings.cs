@@ -1,6 +1,15 @@
-﻿extern alias @private;
+﻿extern alias polyfills;
+extern alias @private;
 global using @private::JetBrains.Annotations;
 global using System;
+global using System.Linq;
+global using System.Collections.Generic;
+global using System.Threading;
+global using System.Threading.Tasks;
 global using System.Runtime.InteropServices;
 global using System.Runtime.CompilerServices;
 global using System.Diagnostics.CodeAnalysis;
+global using polyfills::System;
+global using polyfills::System.Diagnostics;
+global using polyfills::System.Diagnostics.CodeAnalysis;
+global using polyfills::System.Runtime.CompilerServices;

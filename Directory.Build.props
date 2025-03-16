@@ -9,9 +9,9 @@
             https://nuget.samboy.dev/v3/index.json
         </RestoreAdditionalProjectSources>
         <SolutionDir>$(MSBuildThisFileDirectory)</SolutionDir>
-        <ILRepackTargetsFile>$(SolutionDir)ILRepack.targets</ILRepackTargetsFile>
+        <RepoGameDir Condition="'$(RepoGameDir)'==''">C:\SteamLibrary\steamapps\common\REPO\REPO_Data\Managed</RepoGameDir>
     </PropertyGroup>
-    
+
     <ItemGroup>
         <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.40">
             <PrivateAssets>all</PrivateAssets>

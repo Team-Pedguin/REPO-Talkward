@@ -18,7 +18,7 @@ using TwitchLib.Api.Core.Enums;
 
 public class TwitchIntegration
 {
-    private readonly TalkwardConfig _config;
+    private readonly TwitchConfig _config;
 
     public event TwitchChatEventHandler? OnTwitchChatEvent;
 
@@ -60,7 +60,7 @@ public class TwitchIntegration
         "moderator:read:chatters"
     ]);
 
-    public TwitchIntegration(TalkwardConfig cfg)
+    public TwitchIntegration(TwitchConfig cfg)
     {
         _config = cfg;
 
@@ -456,7 +456,7 @@ public class TwitchIntegration
                                 static (k, x) => (x.displayName, DateTime.Now),
                                 static (_, _, x) => x.self._config.DisplayNameTransforms is null
                                     ? (x.displayName, DateTime.Now)
-                                    : (TalkwardConfigHelpers.Transform(x.self._config, x.displayName), DateTime.Now),
+                                    : (x.self._config.Transform(x.displayName), DateTime.Now),
                                 (self: this, displayName));
                         }
 
@@ -489,7 +489,7 @@ public class TwitchIntegration
     }
 
     private static async Task<(int total, string cursor, IEnumerable<string> userLogins)>
-        GetUserLogins(TalkwardConfig config, TwitchAPI twitchAPI, string broadcaster, string moderator,
+        GetUserLogins(TwitchConfig config, TwitchAPI twitchAPI, string broadcaster, string moderator,
             string? after = null)
     {
         int total;

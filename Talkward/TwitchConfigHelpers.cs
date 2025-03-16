@@ -2,11 +2,11 @@
 
 namespace Talkward;
 
-public static class TalkwardConfigHelpers
+public static class TwitchConfigHelpers
 {
-    public static void ApplyDefaults(this TalkwardConfig config)
+    public static void ApplyDefaults(this TwitchConfig config)
     {
-        var d = TalkwardConfig.Default;
+        var d = TwitchConfig.Default;
         config.ClientId ??= d.ClientId;
         config.BroadcasterId ??= d.BroadcasterId;
         config.ModeratorId ??= d.ModeratorId;
@@ -18,7 +18,7 @@ public static class TalkwardConfigHelpers
         config.EnoughChatters = d.EnoughChatters;
     }
 
-    public static string? Transform(this TalkwardConfig? config, string? displayName)
+    public static string? Transform(this TwitchConfig? config, string? displayName)
     {
         if (config is null
             || string.IsNullOrEmpty(displayName)

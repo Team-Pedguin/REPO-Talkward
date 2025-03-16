@@ -4,6 +4,7 @@ using BepInEx.Logging;
 using BepInEx.Unity.Mono;
 using ExitGames.Client.Photon;
 using Photon.Voice.Unity;
+using REPOLib;
 using REPOLib.Modules;
 
 namespace Talkward;

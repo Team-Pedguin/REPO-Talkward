@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using REPOLib.Objects.Sdk;
+using TwitchLib.Api.Helix.Models.Users.GetUsers;
 using TwitchLib.Client;
 using TwitchLib.Client.Models;
 using TwitchLib.Client.Models.Builders;
@@ -17,25 +18,32 @@ using TwitchLib.Api.Core.Enums;
 
 public class TwitchIntegration
 {
-    private const string ConfigFileName = "talkward.json";
-    private TalkwardConfig _config = TalkwardConfig.Default;
+    private readonly TalkwardConfig _config;
 
-    private HttpClient _http;
-    private WebSocketClient _ws;
-    private CancellationTokenSource _lifetime = new();
-    private TwitchAPI _twitchApi = new();
-    private TwitchClient _twitchClient;
+    public event TwitchChatEventHandler? OnTwitchChatEvent;
+
+    private readonly HttpClient _http = new();
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly TwitchAPI _api = new();
     private Timer _twitchTokenRefreshTimer;
     private string? _twitchAuthPromptCode;
+
     private string? _twitchRefreshToken;
 
     private string? _currentTwitchUserId;
 
-    private AtomicBoolean _twitchSyncThreadStarted;
-    private Thread _twitchSyncThread;
-    private AtomicBoolean _twitchChatThreadStarted;
-    private Thread _twitchChatThread;
-    private AtomicBoolean _twitchAuthorized;
+    private AtomicBoolean _syncThreadStarted;
+
+    private Thread _syncThread;
+    private AtomicBoolean _chatThreadStarted;
+    private Thread _chatThread;
+    private AtomicBoolean _authorized;
+
+    public string TwitchAuthPromptCode => _twitchAuthPromptCode ?? "";
+    public string TwitchRefreshToken => _twitchRefreshToken ?? "";
+    public string? CurrentTwitchUserId => _currentTwitchUserId ?? "";
+    public bool SyncThreadStarted => _syncThreadStarted;
+    public bool ChatThreadStarted => _chatThreadStarted;
 
     private ConcurrentDictionary<string, (string? DisplayName, DateTime Queried)> _names
         = new(StringComparer.OrdinalIgnoreCase);
@@ -52,22 +60,12 @@ public class TwitchIntegration
         "moderator:read:chatters"
     ]);
 
-    public event TwitchChatEventHandler? OnTwitchChatEvent;
-
-    public TwitchIntegration()
+    public TwitchIntegration(TalkwardConfig cfg)
     {
-        if (File.Exists(ConfigFileName))
-        {
-            var jsonText = File.ReadAllText(ConfigFileName);
-            _config = JsonSerializer.Deserialize<TalkwardConfig>(jsonText)
-                      ?? TalkwardConfig.Default;
-            _config.ApplyDefaults();
-        }
+        _config = cfg;
 
-        _http = new HttpClient();
-
-        var settings = _twitchApi.Settings;
-        settings.ClientId = _config.ClientId;
+        var settings = _api.Settings;
+        settings.ClientId = cfg.ClientId;
         settings.Scopes = _twitchApiScopes.Split(' ')
             .Select(s =>
             {
@@ -86,7 +84,7 @@ public class TwitchIntegration
         {
             var resp = await _http.PostAsync("https://id.twitch.tv/oauth2/device",
                 new FormUrlEncodedContent([
-                    KeyValuePair.Create("client_id", _config.ClientId),
+                    KeyValuePair.Create("client_id", cfg.ClientId),
                     KeyValuePair.Create("scope", _twitchApiScopes)
                 ]));
 
@@ -114,7 +112,7 @@ public class TwitchIntegration
 
             _twitchAuthPromptCode = userCode;
 
-            if (_config.OpenTwitchAuthInBrowser)
+            if (cfg.OpenTwitchAuthInBrowser)
             {
                 var verificationStartInfo = new ProcessStartInfo
                 {
@@ -129,7 +127,7 @@ public class TwitchIntegration
                 Process.Start(verificationStartInfo)?.Dispose();
             }
 
-            _twitchAuthorized.Set(false);
+            _authorized.Set(false);
             bool success = false;
             var started = DateTime.Now;
             var expirationDate = DateTime.Now + TimeSpan.FromSeconds(expiresIn);
@@ -139,7 +137,7 @@ public class TwitchIntegration
                 await Task.Delay(intervalMs);
                 resp = await _http.PostAsync("https://id.twitch.tv/oauth2/token",
                     new FormUrlEncodedContent([
-                        KeyValuePair.Create("client_id", _config.ClientId),
+                        KeyValuePair.Create("client_id", cfg.ClientId),
                         KeyValuePair.Create("device_code", deviceCode),
                         KeyValuePair.Create("scope", _twitchApiScopes),
                         KeyValuePair.Create("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
@@ -198,9 +196,9 @@ public class TwitchIntegration
                 _twitchRefreshToken = refreshToken;
 
                 success = true;
-                _twitchAuthorized.Set(true);
-                if (!_twitchSyncThreadStarted)
-                    _twitchSyncThread.Start(this);
+                _authorized.Set(true);
+                if (!_syncThreadStarted)
+                    _syncThread.Start(this);
                 //log.Msg("Twitch DCF auth successful");
 
                 _twitchTokenRefreshTimer = new Timer(
@@ -208,7 +206,7 @@ public class TwitchIntegration
                     this,
                     TimeSpan.FromSeconds(Math.Max(5, expiresIn - 2.5)),
                     Timeout.InfiniteTimeSpan);
-            } while (!_twitchAuthorized && DateTime.Now < expirationDate);
+            } while (!_authorized && DateTime.Now < expirationDate);
 
             /*if (success == false)
                 log.Error("Twitch DCF auth failed");*/
@@ -217,12 +215,12 @@ public class TwitchIntegration
         //TwitchDeviceCodeFlowAuth().GetAwaiter().GetResult();
         ThreadPool.QueueUserWorkItem(_ => TwitchDeviceCodeFlowAuth().GetAwaiter().GetResult());
 
-        _twitchSyncThread = new Thread(TwitchSyncWorker)
+        _syncThread = new Thread(TwitchSyncWorker)
         {
             Name = "Twitch Sync Worker",
             IsBackground = true
         };
-        _twitchChatThread = new Thread(TwitchChatWorker)
+        _chatThread = new Thread(TwitchChatWorker)
         {
             Name = "Twitch Chat Worker",
             IsBackground = true
@@ -232,19 +230,21 @@ public class TwitchIntegration
     private void Shutdown()
     {
         _lifetime.Cancel();
-        _twitchSyncThread.Interrupt();
-        _twitchChatThread.Interrupt();
+        _syncThread.Interrupt();
+        _chatThread.Interrupt();
     }
 
     private static void RefreshWorker(object? o)
+        => ((TwitchIntegration) o!).HandleRefresh();
+
+    private void HandleRefresh()
     {
-        var self = (TwitchIntegration) o!;
-        if (self._twitchRefreshToken is null) return;
+        if (_twitchRefreshToken is null) return;
 
         static async Task RefreshToken(TwitchIntegration self)
         {
             //var log = self.LoggerInstance;
-            self._twitchAuthorized.Set(false);
+            self._authorized.Set(false);
 
             //log.Msg("Refreshing Twitch auth...");
 
@@ -275,21 +275,18 @@ public class TwitchIntegration
             var refreshTime = TimeSpan.FromSeconds(Math.Max(5, expiresIn - 2));
 
             //log.Msg("Twitch auth refresh successful");
-            self._twitchApi.Settings.AccessToken = newAccessToken;
+            self._api.Settings.AccessToken = newAccessToken;
             self._twitchRefreshToken = newRefreshToken;
             self._twitchTokenRefreshTimer.Change(refreshTime, Timeout.InfiniteTimeSpan);
-            self._twitchAuthorized.Set(true);
+            self._authorized.Set(true);
         }
 
-        RefreshToken(self).GetAwaiter().GetResult();
+        RefreshToken(this).GetAwaiter().GetResult();
     }
 
     private async Task<string?> GetCurrentTwitchUserId()
-    {
-        var twitch = _twitchApi;
-        var resp = await twitch.Helix.Users.GetUsersAsync();
-        return resp.Users.FirstOrDefault()?.Id;
-    }
+        => (await _api.Helix.Users.GetUsersAsync())
+            .Users.FirstOrDefault()?.Id;
 
     private static void TwitchChatWorker(object? o)
         => ((TwitchIntegration) o!).HandleTwitchChat();
@@ -300,12 +297,12 @@ public class TwitchIntegration
 
     private void WaitForTwitchAuth(int msIntervals)
     {
-        while (!_twitchAuthorized)
+        while (!_authorized)
             Thread.Sleep(msIntervals);
 
         for (;;)
         {
-            var settings = _twitchApi.Settings;
+            var settings = _api.Settings;
 
             if (settings.ClientId is not null
                 && settings.AccessToken is not null)
@@ -331,24 +328,24 @@ public class TwitchIntegration
             ThrottlingPeriod = TimeSpan.FromSeconds(30),
         };
 
-        _ws = new WebSocketClient(clientOptions);
-        _twitchClient = new TwitchClient(_ws);
-        
-        _twitchClient.Initialize(new ConnectionCredentials(chatter, _twitchApi.Settings.AccessToken));
+        var ws = new WebSocketClient(clientOptions);
+        var client = new TwitchClient(ws);
 
-        _twitchClient.OnUserJoined += (_, e) =>
+        client.Initialize(new ConnectionCredentials(chatter, _api.Settings.AccessToken));
+
+        client.OnUserJoined += (_, e) =>
             _names.TryAdd(e.Username, (null, DateTime.Now));
 
-        _twitchClient.OnExistingUsersDetected += (_, e) =>
+        client.OnExistingUsersDetected += (_, e) =>
         {
             foreach (var user in e.Users)
                 _names.TryAdd(user, (null, DateTime.Now));
         };
 
-        _twitchClient.OnUserLeft += (_, e)
+        client.OnUserLeft += (_, e)
             => _names.TryRemove(e.Username, out var _);
 
-        _twitchClient.OnMessageReceived += (_, e) =>
+        client.OnMessageReceived += (_, e) =>
         {
             var msg = e.ChatMessage;
             _names[msg.Username] = (msg.DisplayName, DateTime.Now);
@@ -357,17 +354,17 @@ public class TwitchIntegration
             OnTwitchChatEvent?.Invoke(this, args);
         };
 
-        _twitchClient.OnJoinedChannel += (_, e)
+        client.OnJoinedChannel += (_, e)
             => chatter = e.BotUsername;
 
-        _twitchClient.OnLeftChannel += (_, e) =>
+        client.OnLeftChannel += (_, e) =>
         {
-            if (e.BotUsername == chatter) _twitchClient.Disconnect();
+            if (e.BotUsername == chatter) client.Disconnect();
         };
 
-        _twitchClient.Connect();
+        client.Connect();
 
-        _twitchClient.JoinChannel(cfg.BroadcasterId ?? chatter);
+        client.JoinChannel(cfg.BroadcasterId ?? chatter);
     }
 
     private void HandleTwitchSync()
@@ -385,7 +382,7 @@ public class TwitchIntegration
         {
             async Task AsyncWork()
             {
-                var twitch = _twitchApi;
+                var twitch = _api;
                 var (total, cursor, userLogins)
                     = await GetUserLogins(cfg, twitch, broadcaster, moderator);
                 var pageCount = 1;
@@ -471,7 +468,7 @@ public class TwitchIntegration
                 }
             }
 
-            if (_twitchAuthorized)
+            if (_authorized)
                 AsyncWork().GetAwaiter().GetResult();
 
 
@@ -506,57 +503,4 @@ public class TwitchIntegration
         }
         return (total, cursor, userLogins);
     }
-}
-
-public delegate void TwitchChatEventHandler(object sender, TwitchChatEventArgs args);
-
-public class TwitchChatEventArgs : EventArgs
-{
-    public ChatMessage Data { get; }
-
-    public TwitchChatEventArgs(ChatMessage msg)
-        => Data = msg;
-
-    public string? UserName => Data.Username;
-    public string? DisplayName => Data.DisplayName;
-    public string? Message => Data.Message;
-    public string? MessageId => Data.Id;
-    public string? Channel => Data.Channel;
-    public string? UserId => Data.UserId;
-    public string? Color => Data.ColorHex;
-
-    // paid messages
-    public bool IsBitsReward => Data.Bits > 0;
-    public int Bits => Data.Bits;
-
-    // channel points
-    public bool IsChannelPointsReward => IsHighlighted
-                                         || IsSkippingSubMode
-                                         || IsCustomReward;
-
-    public bool IsHighlighted => Data.IsHighlighted;
-    public bool IsSkippingSubMode => Data.IsSkippingSubMode;
-    public bool IsCustomReward => Data.CustomRewardId != null;
-    public string? CustomReward => Data.CustomRewardId;
-
-    public bool IsMe => Data.IsMe;
-    public bool IsBroadcaster => Data.IsBroadcaster;
-    public bool IsSubscriber => Data.IsSubscriber;
-    public bool IsModerator => Data.IsModerator;
-    public bool IsTurbo => Data.IsTurbo;
-    public bool IsStaff => Data.IsStaff;
-    public bool IsReply => Data.ChatReply != null;
-    public bool IsVip => Data.IsVip;
-    public bool IsPartner => Data.IsPartner;
-    public bool IsFirstMessage => Data.IsFirstMessage;
-
-    private ChatReply? RepliedTo => Data.ChatReply;
-
-    private string? _userType;
-    public string? UserType => _userType ??= Data.UserType.ToString();
-
-    private DateTimeOffset? _sent;
-
-    public DateTimeOffset Sent
-        => _sent ??= DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(Data.TmiSentTs));
 }

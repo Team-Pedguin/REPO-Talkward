@@ -52,12 +52,11 @@ internal readonly struct Range : IEquatable<Range>
 
     public override string ToString()
     {
-        return Start + ".." + End;
+        return $"{Start}..{End}";
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [return: TupleElementNames(new[] {"Offset", "Length"})]
-    public ValueTuple<int, int> GetOffsetAndLength(int length)
+    public (int Offset, int Length) GetOffsetAndLength(int length)
     {
         var startIndex = Start;
         var isFromEnd = startIndex.IsFromEnd;
@@ -78,6 +77,6 @@ internal readonly struct Range : IEquatable<Range>
         var flag = end > length || start > end;
         if (flag) throw new ArgumentOutOfRangeException(nameof(length));
 
-        return new ValueTuple<int, int>(start, end - start);
+        return (start, end - start);
     }
 }

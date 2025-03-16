@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <Version>1.0.5</Version>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="F23.StringSimilarity" Version="6.0.0" />
+      <PackageReference Include="Gameloop.Vdf" Version="0.6.2" />
+      <PackageReference Include="Microsoft.Build.Framework" Version="17.13.9" />
+      <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.13.9" />
+      <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Finder.MsBuild.Task.targets">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <Target Name="PrepareNupkgInfo">
+        <PropertyGroup>
+            <NuspecPath>$(MSBuildThisFileDirectory)$(MSBuildProjectName).nuspec</NuspecPath>
+            <NupkgPath>$(OutDir)$(MSBuildProjectName).$(Version).nupkg</NupkgPath>
+        </PropertyGroup>
+    </Target>
+
+    <Target Name="CreateNupkg"
+            AfterTargets="Build"
+            DependsOnTargets="PrepareNupkgInfo"
+            Inputs="$(NuspecPath);$(TargetPath);$(MSBuildThisFileFullPath)"
+            Outputs="$(NupkgPath)">
+        <!-- delete previous nupkg -->
+        <ItemGroup>
+            <_NupkgFilesToDelete Include="$(OutDir)*.nupkg" />
+        </ItemGroup>
+        
+        <Delete Files="@(NupkgFilesToDelete)" />
+        
+        <PackTask
+                PackItem="$(NuspecPath)"
+                NuspecFile="$(NuspecPath)"
+                NuspecProperties="version=$(Version)"
+                NuspecBasePath="$(OutDir)"
+                NuspecOutputPath="$(NuspecOutputPath)"
+                PackageOutputPath="$(OutDir)"
+                RestoreOutputPath="$(RestoreOutputPath)"
+                SymbolPackageFormat="snupkg"/>
+    </Target>
+</Project>

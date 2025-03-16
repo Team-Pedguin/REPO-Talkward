@@ -1,0 +1,31 @@
+﻿<Project>
+
+    <UsingTask TaskName="SteamFindAppByIdTask"
+               AssemblyFile="$(MSBuildThisFileDirectory)Finder.MsBuild.Task.dll"/>
+    <!-- example:
+        <SteamFindAppByIdTask AppId="123456">
+            <Output TaskParameter="Path" PropertyName="SteamAppPath"/>
+        </SteamFindAppByIdTask>
+    -->
+
+    <UsingTask TaskName="SteamFindBestMatchingAppTask"
+               AssemblyFile="$(MSBuildThisFileDirectory)Finder.MsBuild.Task.dll"/>
+    <!-- example:
+        <SteamFindBestMatchingAppTask AppName="My Game">
+            <Output TaskParameter="AppId" PropertyName="SteamAppAppId"/>
+            <Output TaskParameter="Path" PropertyName="SteamAppPath"/>
+        </SteamFindBestMatchingAppTask>
+    -->
+
+    <UsingTask TaskName="SteamFindMatchingAppsTask"
+               AssemblyFile="$(MSBuildThisFileDirectory)Finder.MsBuild.Task.dll"/>
+    <!-- example:
+        <SteamFindMatchingAppsTask AppName="My Game">
+            <Output TaskParameter="Apps" ItemName="SteamAppMatch"/>
+        </SteamFindMatchingAppsTask>
+    -->
+    <!-- example output items:
+        <SteamAppMatch Include="c:\path\to\my game" Name="My Game" Id="123456" Score="1.000" />
+        <SteamAppMatch Include="d:\path\to\not my game" Name="Not My Game" Id="234567" Score="0.500" />
+    -->
+</Project>

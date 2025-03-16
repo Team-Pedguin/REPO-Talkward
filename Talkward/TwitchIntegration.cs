@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using BepInEx.Logging;
 using REPOLib.Objects.Sdk;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 using TwitchLib.Client;
@@ -18,14 +19,20 @@ using TwitchLib.Api.Core.Enums;
 
 public class TwitchIntegration
 {
+    private static ManualLogSource Logger => Plugin.Logger!;
+    
     private readonly TwitchConfig _config;
 
     public event TwitchChatEventHandler? OnTwitchChatEvent;
 
     private readonly HttpClient _http = new();
+    
     private readonly CancellationTokenSource _lifetime = new();
+    
     private readonly TwitchAPI _api = new();
+    
     private Timer _twitchTokenRefreshTimer;
+    
     private string? _twitchAuthPromptCode;
 
     private string? _twitchRefreshToken;
@@ -35,8 +42,11 @@ public class TwitchIntegration
     private AtomicBoolean _syncThreadStarted;
 
     private Thread _syncThread;
+    
     private AtomicBoolean _chatThreadStarted;
+    
     private Thread _chatThread;
+    
     private AtomicBoolean _authorized;
 
     public string TwitchAuthPromptCode => _twitchAuthPromptCode ?? "";
@@ -44,6 +54,8 @@ public class TwitchIntegration
     public string? CurrentTwitchUserId => _currentTwitchUserId ?? "";
     public bool SyncThreadStarted => _syncThreadStarted;
     public bool ChatThreadStarted => _chatThreadStarted;
+    
+    public bool Authorized => _authorized;
 
     private ConcurrentDictionary<string, (string? DisplayName, DateTime Queried)> _names
         = new(StringComparer.OrdinalIgnoreCase);
@@ -128,10 +140,9 @@ public class TwitchIntegration
             }
 
             _authorized.Set(false);
-            bool success = false;
             var started = DateTime.Now;
             var expirationDate = DateTime.Now + TimeSpan.FromSeconds(expiresIn);
-            //var log = LoggerInstance;
+            
             do
             {
                 await Task.Delay(intervalMs);
@@ -145,7 +156,7 @@ public class TwitchIntegration
 
                 json = await resp.Content.ReadAsStringAsync();
 
-                //log.Msg($"Response JSON: {json}");
+                Logger.LogInfo($"Response JSON: {json}");
 
                 jsDoc = JsonDocument.Parse(json).RootElement;
 
@@ -159,14 +170,14 @@ public class TwitchIntegration
                         break;
                     case "authorization_pending":
                         var elapsed = Math.Round((DateTime.Now - started).TotalSeconds);
-                        //log.Warning($"Twitch DCF authorization still pending after {elapsed}s");
+                        Logger.LogWarning($"Twitch DCF authorization still pending after {elapsed}s");
                         continue;
                     case "slow_down":
                         interval += 5;
-                        //log.Warning($"Twitch DCF slow down, increasing refresh interval to {interval}s");
+                        Logger.LogWarning($"Twitch DCF slow down, increasing refresh interval to {interval}s");
                         break;
                     default:
-                        //log.Error($"Twitch DCF error while polling for auth: {message}\n{json}");
+                        Logger.LogError($"Twitch DCF error while polling for auth: {message}\n{json}");
                         _twitchAuthPromptCode = null;
                         return;
                 }
@@ -175,7 +186,7 @@ public class TwitchIntegration
                 switch (status)
                 {
                     case > 300:
-                        //log.Error($"Twitch DCF auth failed: {json}");
+                        Logger.LogError($"Twitch DCF auth failed: {json}");
                         continue;
                 }
 
@@ -186,7 +197,7 @@ public class TwitchIntegration
                 if (accessToken is null)
                 {
                     // abnormal response
-                    //log.Error($"Twitch DCF abnormal response: {json}");
+                    Logger.LogError($"Twitch DCF abnormal response: {json}");
                     continue;
                 }
 
@@ -195,11 +206,10 @@ public class TwitchIntegration
                 settings.AccessToken = accessToken;
                 _twitchRefreshToken = refreshToken;
 
-                success = true;
                 _authorized.Set(true);
                 if (!_syncThreadStarted)
                     _syncThread.Start(this);
-                //log.Msg("Twitch DCF auth successful");
+                Logger.LogInfo("Twitch DCF auth successful");
 
                 _twitchTokenRefreshTimer = new Timer(
                     RefreshWorker,
@@ -243,10 +253,9 @@ public class TwitchIntegration
 
         static async Task RefreshToken(TwitchIntegration self)
         {
-            //var log = self.LoggerInstance;
             self._authorized.Set(false);
 
-            //log.Msg("Refreshing Twitch auth...");
+            Logger.LogInfo("Refreshing Twitch auth...");
 
             var refreshResp = await self._http.PostAsync("https://id.twitch.tv/oauth2/token",
                 new FormUrlEncodedContent([
@@ -265,7 +274,7 @@ public class TwitchIntegration
                 case "":
                     break;
                 default:
-                    //log.Error($"Twitch auth refresh error: {error}");
+                    Logger.LogError($"Twitch auth refresh error: {error}");
                     return;
             }
 
@@ -274,7 +283,7 @@ public class TwitchIntegration
             var expiresIn = jsDoc.Get<int>("expires_in");
             var refreshTime = TimeSpan.FromSeconds(Math.Max(5, expiresIn - 2));
 
-            //log.Msg("Twitch auth refresh successful");
+            Logger.LogInfo("Twitch auth refresh successful");
             self._api.Settings.AccessToken = newAccessToken;
             self._twitchRefreshToken = newRefreshToken;
             self._twitchTokenRefreshTimer.Change(refreshTime, Timeout.InfiniteTimeSpan);
@@ -382,9 +391,8 @@ public class TwitchIntegration
         {
             async Task AsyncWork()
             {
-                var twitch = _api;
                 var (total, cursor, userLogins)
-                    = await GetUserLogins(cfg, twitch, broadcaster, moderator);
+                    = await GetUserLogins(broadcaster, moderator);
                 var pageCount = 1;
 
                 void SyncWork()
@@ -431,7 +439,7 @@ public class TwitchIntegration
                         break;
 
                     (total, cursor, userLogins)
-                        = await GetUserLogins(cfg, twitch, broadcaster, moderator, after: cursor);
+                        = await GetUserLogins(broadcaster, moderator, after: cursor);
                     pageCount++;
                 }
 
@@ -447,7 +455,7 @@ public class TwitchIntegration
 
                     if (logins.Count == 0) break;
 
-                    var resp = await twitch.Helix.Users.GetUsersAsync(null, logins);
+                    var resp = await _api.Helix.Users.GetUsersAsync(null, logins);
 
                     {
                         void UpdateChatter(string login, string displayName)
@@ -488,15 +496,14 @@ public class TwitchIntegration
         } while (!_lifetime.IsCancellationRequested);
     }
 
-    private static async Task<(int total, string cursor, IEnumerable<string> userLogins)>
-        GetUserLogins(TwitchConfig config, TwitchAPI twitchAPI, string broadcaster, string moderator,
-            string? after = null)
+    private async Task<(int Total, string Cursor, IEnumerable<string> UserLogins)>
+        GetUserLogins(string broadcaster, string moderator, string? after = null)
     {
         int total;
         string cursor;
         IEnumerable<string> userLogins;
         {
-            var chattersResp = await twitchAPI.Helix.Chat.GetChattersAsync(broadcaster, moderator, after: after);
+            var chattersResp = await _api.Helix.Chat.GetChattersAsync(broadcaster, moderator, after: after);
             total = chattersResp.Total;
             cursor = chattersResp.Pagination.Cursor;
             userLogins = chattersResp.Data.Select(x => x.UserLogin);

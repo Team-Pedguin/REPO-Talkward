@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+    <metadata>
+        <id>Finder.MsBuild.Task</id>
+        <version>1.0.5</version>
+        <title>Finder.MsBuild.Task</title>
+        <authors>Team-Pedguin</authors>
+        <owners>Tyler-IN</owners>
+        <developmentDependency>true</developmentDependency>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <license type="expression">MIT</license>
+        <projectUrl>https://github.com/Team-Pedguin/Talkward/tree/Finder.MsBuild.Task</projectUrl>
+        <description>Assists in finding game locations at build time.</description>
+        <summary>Assists in finding game locations at build time.</summary>
+        <copyright>Team-Pedguin</copyright>
+        <language>en-US</language>
+        <tags>Steam,Game,Finder,MSBuild</tags>
+    </metadata>
+    <files>
+        <file src="Finder.MsBuild.Task.targets" target="build"/>
+        <file src="Finder.MsBuild.Task.dll" target="build"/>
+        <file src="F23.StringSimilarity.dll" target="build"/>
+        <file src="Gameloop.Vdf.dll" target="build"/>
+    </files>
+</package>

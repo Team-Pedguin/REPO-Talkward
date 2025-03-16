@@ -4,10 +4,11 @@ internal static class RuntimeHelpers
 {
     public static T[] GetSubArray<T>(T[] array, Range range)
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
         var flag = array == null;
         if (flag) throw new ArgumentNullException(nameof(array));
 
-        var offsetAndLength = range.GetOffsetAndLength(array.Length);
+        var offsetAndLength = range.GetOffsetAndLength(array!.Length);
         var offset = offsetAndLength.Item1;
         var length = offsetAndLength.Item2;
         var flag2 = default(T) != null || typeof(T[]) == array.GetType();

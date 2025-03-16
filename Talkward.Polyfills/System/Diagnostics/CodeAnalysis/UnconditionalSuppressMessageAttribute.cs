@@ -15,11 +15,11 @@ internal sealed class UnconditionalSuppressMessageAttribute : Attribute
 
     public string CheckId { get; }
 
-    public string Scope { get; set; }
+    public string? Scope { get; set; }
 
-    public string Target { get; set; }
+    public string? Target { get; set; }
 
-    public string MessageId { get; set; }
+    public string? MessageId { get; set; }
 
-    public string Justification { get; set; }
+    public string? Justification { get; set; }
 }

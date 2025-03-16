@@ -16,7 +16,7 @@ public class Plugin : BaseUnityPlugin
 {
     internal new static ManualLogSource? Logger { get; private set; }
     public static NetworkedEvent? ExternalChatMessage { get; private set; }
-    public static Plugin Instance { get; private set; }
+    public static Plugin Instance { get; private set; } = null!;
 
     public static PlayerVoiceChat PlayerVoiceChat => PlayerVoiceChat.instance;
 

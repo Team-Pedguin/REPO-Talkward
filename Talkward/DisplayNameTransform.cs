@@ -8,18 +8,18 @@ namespace Talkward;
 public sealed class DisplayNameTransform
 {
     [JsonPropertyName("match")]
-    public string Match { get; set; }
+    public required string Match { get; set; }
 
     [JsonPropertyName("replace")]
-    public string Replace { get; set; }
+    public required string Replace { get; set; }
 
     [JsonPropertyName("flags")]
-    public string Flags { get; set; }
+    public string? Flags { get; set; }
 
     [JsonPropertyName("maxMatches"), DefaultValue(1)]
     public int MaxMatches { get; set; } = 1;
 
-    private int _init;
+    private AtomicBoolean _init;
 
     private Regex? _regex;
 
@@ -32,7 +32,7 @@ public sealed class DisplayNameTransform
         {
             // init lock
 #pragma warning disable CS8774 // Member must have a non-null value when exiting.
-            if (Interlocked.CompareExchange(ref _init, 1, 0) != 0)
+            if (_init.TrySet())
             {
                 var rx = _regex;
                 while (rx is null)
@@ -46,19 +46,23 @@ public sealed class DisplayNameTransform
             }
 #pragma warning restore CS8774
 
-            // parse flags
             var flags = RegexOptions.Compiled
                         | RegexOptions.IgnoreCase
                         | RegexOptions.CultureInvariant
                         | RegexOptions.ECMAScript;
 
-            if (Flags.Contains('g')) MaxMatches = -1;
-            if (Flags.Contains('i')) flags |= RegexOptions.IgnoreCase;
-            if (Flags.Contains('m')) flags |= RegexOptions.Multiline;
-            if (Flags.Contains('s')) flags |= RegexOptions.Singleline;
-            if (Flags.Contains('x')) flags |= RegexOptions.IgnorePatternWhitespace;
-            if (Flags.Contains('n')) flags |= RegexOptions.ExplicitCapture;
-            if (Flags.Contains('r')) flags |= RegexOptions.RightToLeft;
+            var flagsStr = Flags;
+            if (string.IsNullOrWhiteSpace(flagsStr))
+                return _regex = new(Match, flags);
+
+            // parse flags
+            if (flagsStr.Contains('g')) MaxMatches = -1;
+            if (flagsStr.Contains('i')) flags |= RegexOptions.IgnoreCase;
+            if (flagsStr.Contains('m')) flags |= RegexOptions.Multiline;
+            if (flagsStr.Contains('s')) flags |= RegexOptions.Singleline;
+            if (flagsStr.Contains('x')) flags |= RegexOptions.IgnorePatternWhitespace;
+            if (flagsStr.Contains('n')) flags |= RegexOptions.ExplicitCapture;
+            if (flagsStr.Contains('r')) flags |= RegexOptions.RightToLeft;
             return _regex = new(Match, flags);
         }
     }

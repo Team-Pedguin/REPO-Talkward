@@ -31,21 +31,21 @@ public class TwitchIntegration
     
     private readonly TwitchAPI _api = new();
     
-    private Timer _twitchTokenRefreshTimer;
+    private Timer? _twitchTokenRefreshTimer;
     
     private string? _twitchAuthPromptCode;
 
     private string? _twitchRefreshToken;
 
     private string? _currentTwitchUserId;
-
-    private AtomicBoolean _syncThreadStarted;
-
-    private Thread _syncThread;
     
-    private AtomicBoolean _chatThreadStarted;
+    private AtomicBoolean _syncThreadStarted = default;
+
+    private readonly Thread _syncThread;
     
-    private Thread _chatThread;
+    private AtomicBoolean _chatThreadStarted = default;
+    
+    private readonly Thread _chatThread;
     
     private AtomicBoolean _authorized;
 
@@ -208,7 +208,7 @@ public class TwitchIntegration
 
                 _authorized.Set(true);
                 if (!_syncThreadStarted)
-                    _syncThread.Start(this);
+                    _syncThread!.Start(this);
                 Logger.LogInfo("Twitch DCF auth successful");
 
                 _twitchTokenRefreshTimer = new Timer(
@@ -286,7 +286,7 @@ public class TwitchIntegration
             Logger.LogInfo("Twitch auth refresh successful");
             self._api.Settings.AccessToken = newAccessToken;
             self._twitchRefreshToken = newRefreshToken;
-            self._twitchTokenRefreshTimer.Change(refreshTime, Timeout.InfiniteTimeSpan);
+            self._twitchTokenRefreshTimer!.Change(refreshTime, Timeout.InfiniteTimeSpan);
             self._authorized.Set(true);
         }
 

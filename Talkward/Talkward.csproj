@@ -7,6 +7,7 @@
         <RepoGameDataDir>$(RepoGameDir)\REPO_Data\Managed</RepoGameDataDir>
         
         <ILRepackTargetsFile>$(MSBuildThisFileDirectory)ILRepack.targets</ILRepackTargetsFile>
+        <NoWarn>CS1685</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -20,7 +21,7 @@
     </ItemGroup>
     
     <ItemGroup>
-      <ProjectReference Include="..\Talkward.Polyfills\Talkward.Polyfills.csproj" Aliases="polyfills">
+      <ProjectReference Include="..\Talkward.Polyfills\Talkward.Polyfills.csproj">
           <Private>True</Private>
       </ProjectReference>
     </ItemGroup>

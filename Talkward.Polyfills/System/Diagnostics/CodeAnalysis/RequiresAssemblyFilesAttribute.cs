@@ -15,7 +15,7 @@ internal sealed class RequiresAssemblyFilesAttribute : Attribute
         Message = message;
     }
 
-    public string Message { get; }
+    public string? Message { get; }
 
-    public string Url { get; set; }
+    public string? Url { get; set; }
 }

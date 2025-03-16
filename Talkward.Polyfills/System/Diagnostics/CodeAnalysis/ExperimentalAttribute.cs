@@ -15,5 +15,5 @@ internal sealed class ExperimentalAttribute : Attribute
     public string DiagnosticId { get; }
 
 
-    public string UrlFormat { get; set; }
+    public string? UrlFormat { get; set; }
 }

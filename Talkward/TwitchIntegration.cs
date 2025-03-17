@@ -11,6 +11,7 @@ using TwitchLib.Client.Models;
 using TwitchLib.Client.Models.Builders;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
+using UnityEngine;
 
 namespace Talkward;
 
@@ -125,19 +126,7 @@ public class TwitchIntegration
             _twitchAuthPromptCode = userCode;
 
             if (cfg.OpenTwitchAuthInBrowser)
-            {
-                var verificationStartInfo = new ProcessStartInfo
-                {
-                    FileName = verificationUri,
-                    UseShellExecute = true
-                };
-
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    verificationStartInfo.FileName = verificationStartInfo.FileName
-                        .Replace("&", "^&");
-
-                Process.Start(verificationStartInfo)?.Dispose();
-            }
+                Application.OpenURL(verificationUri);
 
             _authorized.Set(false);
             var started = DateTime.Now;

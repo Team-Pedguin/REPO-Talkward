@@ -1,0 +1,7 @@
+{
+    "name": "Talkward",
+    "version_number": "0.1.0",
+    "website_url": "https://github.com/TeamPedguin/Talkward",
+    "description": "A mod that allows Twitch chat messages to be read aloud in the game.",
+    "dependencies": [ "REPOLib-1.4.2" ]
+}

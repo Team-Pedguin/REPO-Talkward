@@ -6,6 +6,8 @@ using ExitGames.Client.Photon;
 using Photon.Voice.Unity;
 using REPOLib;
 using REPOLib.Modules;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Talkward;
 
@@ -46,6 +48,10 @@ public class Plugin : BaseUnityPlugin
     }
 
     private AtomicBoolean _hearBroadcast;
+    private GameObject? _gameObject;
+    private AudioSource? _privateAudioSource;
+    private AudioSource? _playerAudioSource;
+    private TTSVoice? _privateTts;
 
     public bool HearBroadcast
     {
@@ -61,6 +67,25 @@ public class Plugin : BaseUnityPlugin
         ExternalChatMessage = new NetworkedEvent("Enable or Disable Talkward", HandleExternalChatMessage);
 
         Instance = this;
+
+        _gameObject = new GameObject("Talkward Local Game Object")
+        {
+            hideFlags = HideFlags.HideInHierarchy,
+            transform =
+            {
+                localPosition = Vector3.zero,
+                localRotation = Quaternion.identity,
+                parent = PlayerVoiceChat.ttsVoice.transform
+            }
+        };
+        DontDestroyOnLoad(_gameObject);
+        
+
+        _privateAudioSource = _gameObject.AddComponent<AudioSource>();
+
+        _privateTts = _gameObject.AddComponent<TTSVoice>();
+
+        _playerAudioSource = PlayerVoiceChat.ttsVoice.GetComponent<AudioSource>();
     }
 
     private void HandleExternalChatMessage(EventData e)
@@ -82,7 +107,10 @@ public class Plugin : BaseUnityPlugin
         Speak(header);
     }
 
-    private static StringBuilder Sanitize(StringBuilder sb)
+    public static StringBuilder Sanitize(string sb)
+        => Sanitize(new StringBuilder(sb));
+
+    public static StringBuilder Sanitize(StringBuilder sb)
         => sb
             .Replace("ö", "oe")
             .Replace("Ö", "OE")
@@ -98,10 +126,13 @@ public class Plugin : BaseUnityPlugin
             .Replace("ø", "oe")
             .Replace("Ø", "OE");
 
-    private void Speak(MessageContent msg)
+    public void Speak(MessageContent msg)
     {
-        var sanitized = Sanitize(new StringBuilder(msg.Message));
+        var sanitized = Sanitize(msg.Message).ToString();
         var whisper = msg.Voice == 1;
-        PlayerVoiceChat.ttsVoice.TTSSpeakNow(sanitized.ToString(), whisper);
+        if (_alertsMobs)
+            PlayerVoiceChat.ttsVoice.TTSSpeakNow(sanitized, whisper);
+        else
+            _privateTts!.TTSSpeakNow(sanitized, whisper);
     }
 }

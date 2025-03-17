@@ -37,13 +37,15 @@ Configuration options are available through the BepInEx configuration file locat
 ## Building from Source
 
 ### Prerequisites
+- R.E.P.O. game installed via Steam
+    - (need to reference the assemblies)
 - Sufficiently new-ish .NET SDK
-- REPO game installed (need to reference the assemblies)
 
 ### Build Steps
 1. Clone the repository
-2. Update the `RepoGameDir` property in `Talkward.csproj` if needed
-3. Run `dotnet build` from the solution directory
+2. Run `dotnet build` from the solution directory
+3. Deploy the resulting DLL to your BepInEx plugins folder
+   * This step is being integrated as an opt-out build-step feature  
 
 ## License
 

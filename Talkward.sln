@@ -5,6 +5,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configuration", "Configuration", "{7DD31D40-2A9A-4385-A7FE-CC210D8F5377}"
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
+		manifest.json = manifest.json
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Talkward.Polyfills", "Talkward.Polyfills\Talkward.Polyfills.csproj", "{07FFC1FC-F429-42B5-B341-661C8A939651}"
@@ -14,6 +15,12 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MsBuild", "MsBuild", "{2FE7FCDE-E438-4563-BFC2-DE3DA56807AF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Finder.MsBuild.Task.Tests", "Finder.MsBuild.Task.Tests\Finder.MsBuild.Task.Tests.csproj", "{23796AE0-1750-4794-94BD-D3911724F78E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{AB3FC7E6-DC35-4083-889D-302D691275A2}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE.txt = LICENSE.txt
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

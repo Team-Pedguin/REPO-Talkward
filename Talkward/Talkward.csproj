@@ -46,6 +46,29 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Finder.MsBuild.Task" Version="1.0.5" PrivateAssets="all"/>
+        <PackageReference Include="Finder.MsBuild.Task" Version="1.0.7" PrivateAssets="all"/>
     </ItemGroup>
+    
+    <Target Name="PackForThunderstore" AfterTargets="ILRepacker">
+        <!-- icon.png, manifest.json, README.md, and LICENSE.txt are copied from the root of the project -->
+        <!-- TalkwardMod.dll is the merged assembly -->
+        
+        <ItemGroup>
+            <ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.dll" />
+            <ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.pdb" />
+            <!--<ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.xml" />-->
+            <ThunderstorePackage Include="$(SolutionDir)icon.png" />
+            <ThunderstorePackage Include="$(SolutionDir)manifest.json" />
+            <ThunderstorePackage Include="$(SolutionDir)README.md" />
+            <ThunderstorePackage Include="$(SolutionDir)LICENSE.txt" />
+        </ItemGroup>
+        
+        <!-- zip them all up -->
+        <Pack
+            Overwrite="true"
+            Verbose="true"
+            Items="@(ThunderstorePackage)"
+            OutputFile="$(OutputPath)TeamPedguin-$(AssemblyName)-$(Version).zip"
+            Type="zip" />
+    </Target>
 </Project>

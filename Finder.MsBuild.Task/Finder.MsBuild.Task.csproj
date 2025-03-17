@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-        <Version>1.0.5</Version>
+        <Version>1.0.7</Version>
     </PropertyGroup>
 
     <ItemGroup>
@@ -34,10 +34,10 @@
             Outputs="$(NupkgPath)">
         <!-- delete previous nupkg -->
         <ItemGroup>
-            <_NupkgFilesToDelete Include="$(OutDir)*.nupkg" />
+            <_NupkgFilesToDelete Include="$(SolutionDir)\nuget\Finder.MsBuild.Task*.nupkg" />
         </ItemGroup>
         
-        <Delete Files="@(NupkgFilesToDelete)" />
+        <Delete Files="@(_NupkgFilesToDelete)" />
         
         <PackTask
                 PackItem="$(NuspecPath)"
@@ -45,7 +45,7 @@
                 NuspecProperties="version=$(Version)"
                 NuspecBasePath="$(OutDir)"
                 NuspecOutputPath="$(NuspecOutputPath)"
-                PackageOutputPath="$(OutDir)"
+                PackageOutputPath="$(SolutionDir)\nuget"
                 RestoreOutputPath="$(RestoreOutputPath)"
                 SymbolPackageFormat="snupkg"/>
     </Target>

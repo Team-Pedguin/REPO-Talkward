@@ -56,4 +56,5 @@
         <!-- report -->
         <Message Text="Merged: @(IlRepackAssembly->'%(Name)')" Importance="high" />
     </Target>
+    
 </Project>

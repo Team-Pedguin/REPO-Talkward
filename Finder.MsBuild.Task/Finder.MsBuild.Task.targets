@@ -28,4 +28,15 @@
         <SteamAppMatch Include="c:\path\to\my game" Name="My Game" Id="123456" Score="1.000" />
         <SteamAppMatch Include="d:\path\to\not my game" Name="Not My Game" Id="234567" Score="0.500" />
     -->
+    
+    <UsingTask TaskName="Pack"
+               AssemblyFile="$(MSBuildThisFileDirectory)Finder.MsBuild.Task.dll"/>
+    <!-- example:
+        <Pack
+            Overwrite="true"
+            Verbose="false"
+            Items="@(ItemsToPack)"
+            OutputFile="$(OutDir)/MyPackage.zip"
+            Type="zip" />
+    -->
 </Project>

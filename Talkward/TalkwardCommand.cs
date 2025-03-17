@@ -47,13 +47,13 @@ public static class TalkwardCommand
             }
             case "on":
             {
-                Plugin.Instance.Enabled = true;
+                Plugin.Instance.TalkwardEnabled = true;
                 log.LogInfo("Talkward enabled.");
                 return;
             }
             case "off":
             {
-                Plugin.Instance.Enabled = false;
+                Plugin.Instance.TalkwardEnabled = false;
                 log.LogInfo("Talkward disabled.");
                 return;
             }

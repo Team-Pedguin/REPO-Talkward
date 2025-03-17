@@ -21,8 +21,8 @@
             <IlRepackAssembly Include="@(NuGetReference)"
                               Condition="'%(Name)' == 'System.Runtime.CompilerServices.Unsafe'"/>
             <!-- twitchlib -->
-            <IlRepackAssembly Include="@(NuGetReference)"
-                              Condition="$([System.String]::Copy('%(Name)').StartsWith('TwitchLib'))"/>
+            <!--<IlRepackAssembly Include="@(NuGetReference)"
+                              Condition="$([System.String]::Copy('%(Name)').StartsWith('TwitchLib'))"/>-->
             <!-- any private refs (eg. Talkward.Polyfills) -->
             <IlRepackAssembly Include="@(ReferenceCopyLocalPaths)"
                               Condition="$([System.String]::Copy('%(Identity)').EndsWith('.dll'))"/>

@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using BepInEx;
 using BepInEx.Logging;
-using BepInEx.Unity.Mono;
+using BepInEx;
 using ExitGames.Client.Photon;
 using Photon.Voice.Unity;
 using REPOLib;
@@ -20,15 +20,16 @@ public class Plugin : BaseUnityPlugin
     public static NetworkedEvent? ExternalChatMessage { get; private set; }
     public static Plugin Instance { get; private set; } = null!;
 
-    public static PlayerVoiceChat PlayerVoiceChat => PlayerVoiceChat.instance;
+    public static PlayerVoiceChat? PlayerVoiceChat
+        => PlayerVoiceChat.instance;
 
 
-    private AtomicBoolean _enabled;
+    private AtomicBoolean _talkwardEnabled;
 
-    public bool Enabled
+    public bool TalkwardEnabled
     {
-        get => _enabled;
-        set => _enabled.Set(value);
+        get => _talkwardEnabled;
+        set => _talkwardEnabled.Set(value);
     }
 
     private AtomicBoolean _alertsMobs;
@@ -49,9 +50,7 @@ public class Plugin : BaseUnityPlugin
 
     private AtomicBoolean _hearBroadcast;
     private GameObject? _gameObject;
-    private AudioSource? _privateAudioSource;
-    private AudioSource? _playerAudioSource;
-    private TTSVoice? _privateTts;
+    private TalkwardBehavior? _behavior;
 
     public bool HearBroadcast
     {
@@ -68,24 +67,25 @@ public class Plugin : BaseUnityPlugin
 
         Instance = this;
 
+        CreateGameObject();
+    }
+
+    private void CreateGameObject()
+    {
         _gameObject = new GameObject("Talkward Local Game Object")
         {
-            hideFlags = HideFlags.HideInHierarchy,
+            hideFlags = HideFlags.HideAndDontSave,
             transform =
             {
                 localPosition = Vector3.zero,
                 localRotation = Quaternion.identity,
-                parent = PlayerVoiceChat.ttsVoice.transform
-            }
+                parent = null
+            },
+            isStatic = true
         };
         DontDestroyOnLoad(_gameObject);
         
-
-        _privateAudioSource = _gameObject.AddComponent<AudioSource>();
-
-        _privateTts = _gameObject.AddComponent<TTSVoice>();
-
-        _playerAudioSource = PlayerVoiceChat.ttsVoice.GetComponent<AudioSource>();
+        _behavior = _gameObject.AddComponent<TalkwardBehavior>();
     }
 
     private void HandleExternalChatMessage(EventData e)
@@ -131,8 +131,8 @@ public class Plugin : BaseUnityPlugin
         var sanitized = Sanitize(msg.Message).ToString();
         var whisper = msg.Voice == 1;
         if (_alertsMobs)
-            PlayerVoiceChat.ttsVoice.TTSSpeakNow(sanitized, whisper);
+            PlayerVoiceChat?.ttsVoice?.TTSSpeakNow(sanitized, whisper);
         else
-            _privateTts!.TTSSpeakNow(sanitized, whisper);
+            _behavior!.Speak(sanitized, whisper);
     }
 }

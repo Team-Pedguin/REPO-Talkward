@@ -9,7 +9,7 @@
         <developmentDependency>true</developmentDependency>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <license type="expression">MIT</license>
-        <projectUrl>https://github.com/Team-Pedguin/Talkward/tree/Finder.MsBuild.Task</projectUrl>
+        <projectUrl>https://github.com/Team-Pedguin/REPO-Talkward/tree/Finder.MsBuild.Task</projectUrl>
         <description>Assists in finding game locations at build time.</description>
         <summary>Assists in finding game locations at build time.</summary>
         <copyright>Team-Pedguin</copyright>

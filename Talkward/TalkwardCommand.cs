@@ -1,4 +1,8 @@
-﻿using REPOLib.Commands;
+﻿using System.Text;
+using BepInEx.Logging;
+using REPOLib.Commands;
+using Sirenix.Utilities;
+using Unity.VisualScripting;
 
 namespace Talkward;
 
@@ -8,12 +12,45 @@ public static class TalkwardCommand
     [CommandInitializer]
     public static void Initialize()
     {
+        Console.TryExecute += line =>
+        {
+            var argStr = line.AsSpan();
+            var indexOfFirstSpace = argStr.IndexOf(' ');
+            var firstArg = indexOfFirstSpace == -1
+                ? argStr
+                : argStr.Slice(0, indexOfFirstSpace);
+
+            var cmd = firstArg.ToString();
+            
+            if (CommandManager.CommandsEnabled.TryGetValue(cmd, out var enabled) && !enabled)
+            {
+                Plugin.Logger?.LogWarning($"{cmd} is disabled.");
+                return false;
+            }
+
+            if (!CommandManager.CommandExecutionMethods.TryGetValue(cmd, out var mi))
+                return false;
+
+            var argStrAfterCmd = argStr.Slice(indexOfFirstSpace + 1).ToString();
+            
+            try
+            {
+                mi.InvokeOptimized(null, argStrAfterCmd);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger?.LogError($"{ex.GetType().GetNiceName()} in {cmd}: {ex.Message}");
+                return false;
+            }
+
+            return true;
+        };
     }
 
     [CommandExecution(
          "Talkward",
          "Accesses Talkward functionality.",
-         enabledByDefault: false,
+         enabledByDefault: true,
          requiresDeveloperMode: false
      ), CommandAlias("talkward"), CommandAlias("tw")]
     public static void Execute(string argStr)
@@ -84,6 +121,11 @@ public static class TalkwardCommand
                 return;
             }
 #if DEBUG
+            case "log":
+            {
+                Plugin.Logger!.Log(LogLevel.Debug,argStr.Substring(4));
+                return;
+            }
             case "speak":
             {
                 var msg = Plugin.Sanitize(argStr.Substring(6)).Trim().ToString();

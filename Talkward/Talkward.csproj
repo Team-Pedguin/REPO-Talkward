@@ -11,6 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="BitFaster.Caching" Version="2.5.3" />
         <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.3" />
         <PackageReference Include="System.IO.Pipelines" Version="9.0.3" />
         <PackageReference Include="System.Memory" Version="4.6.0" />
@@ -102,7 +103,8 @@
                            Condition="
              '%(Name)'=='Microsoft.Extensions.DependencyInjection.Abstractions' OR
              '%(Name)'=='System.Text.Encodings.Web' OR
-              $([System.String]::Copy('%(Name)').StartsWith('TwitchLib'))
+              $([System.String]::Copy('%(Name)').StartsWith('TwitchLib')) OR
+              $([System.String]::Copy('%(Name)').StartsWith('BitFaster'))
             " />
             <PackReference Include="@(ResolvedReference)"
                                  Condition="

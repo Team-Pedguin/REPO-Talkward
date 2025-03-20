@@ -6,6 +6,8 @@ using ExitGames.Client.Photon;
 using Photon.Voice.Unity;
 using REPOLib;
 using REPOLib.Modules;
+using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -49,8 +51,15 @@ public class Plugin : BaseUnityPlugin
     }
 
     private AtomicBoolean _hearBroadcast;
-    private GameObject? _gameObject;
-    private TalkwardBehavior? _behavior;
+
+    [NonSerialized]
+    private SpeechBehavior? _speechBehavior;
+
+    [NonSerialized]
+    private ConsoleUI? _console;
+
+    [NonSerialized]
+    public GameObject? staticGameObject;
 
     public bool HearBroadcast
     {
@@ -61,18 +70,24 @@ public class Plugin : BaseUnityPlugin
     private void Awake()
     {
         Logger = base.Logger;
-        Logger.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
+
+        if (Instance)
+        {
+            if (Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+        }
+        else
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
 
         ExternalChatMessage = new NetworkedEvent("Enable or Disable Talkward", HandleExternalChatMessage);
 
-        Instance = this;
-
-        CreateGameObject();
-    }
-
-    private void CreateGameObject()
-    {
-        _gameObject = new GameObject("Talkward Local Game Object")
+        var go = new GameObject("Talkward")
         {
             hideFlags = HideFlags.HideAndDontSave,
             transform =
@@ -83,10 +98,17 @@ public class Plugin : BaseUnityPlugin
             },
             isStatic = true
         };
-        DontDestroyOnLoad(_gameObject);
+        DontDestroyOnLoad(go);
+
+        _speechBehavior = go.AddComponent<SpeechBehavior>();
+
+        _console = go.AddComponent<ConsoleUI>();
         
-        _behavior = _gameObject.AddComponent<TalkwardBehavior>();
+        staticGameObject = go;
+
+        Logger.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
     }
+
 
     private void HandleExternalChatMessage(EventData e)
     {
@@ -133,6 +155,6 @@ public class Plugin : BaseUnityPlugin
         if (_alertsMobs)
             PlayerVoiceChat?.ttsVoice?.TTSSpeakNow(sanitized, whisper);
         else
-            _behavior!.Speak(sanitized, whisper);
+            _speechBehavior!.Speak(sanitized, whisper);
     }
 }

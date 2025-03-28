@@ -19,10 +19,10 @@ public class TwitchConfig
     public DisplayNameTransform[]? DisplayNameTransforms { get; set; }
 
     [JsonPropertyName("drawTwitchAuthCode")]
-    public bool DrawTwitchAuthCode { get; set; } = false;
+    public bool DrawAuthCode { get; set; } = false;
 
     [JsonPropertyName("openTwitchAuthInBrowser")]
-    public bool OpenTwitchAuthInBrowser { get; set; } = true;
+    public bool OpenAuthInBrowser { get; set; } = true;
 
     [JsonPropertyName("enoughChatters")]
     public int EnoughChatters { get; set; } = 512;

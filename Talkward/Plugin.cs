@@ -19,7 +19,8 @@ namespace Talkward;
 public class Plugin : BaseUnityPlugin
 {
     internal new static ManualLogSource? Logger { get; private set; }
-    public static NetworkedEvent? ExternalChatMessage { get; private set; }
+
+    //public static NetworkedEvent? ExternalChatMessage { get; private set; }
     public static Plugin Instance { get; private set; } = null!;
 
     public static PlayerVoiceChat? PlayerVoiceChat
@@ -85,7 +86,7 @@ public class Plugin : BaseUnityPlugin
             DontDestroyOnLoad(gameObject);
         }
 
-        ExternalChatMessage = new NetworkedEvent("Enable or Disable Talkward", HandleExternalChatMessage);
+        //ExternalChatMessage = new NetworkedEvent("Enable or Disable Talkward", HandleExternalChatMessage);
 
         var go = new GameObject("Talkward")
         {
@@ -103,8 +104,141 @@ public class Plugin : BaseUnityPlugin
         _speechBehavior = go.AddComponent<SpeechBehavior>();
 
         _console = go.AddComponent<ConsoleUI>();
-        
+
         staticGameObject = go;
+
+        TalkwardEnabled = Config
+            .Bind("Talkward", "Enabled", true)
+            .Value;
+        /*AlertsMobs = Config
+            .Bind("Talkward", "AlertsMobs", true)
+            .Value;
+        Broadcast = Config
+            .Bind("Talkward", "Broadcast", true)
+            .Value;
+        HearBroadcast = Config
+            .Bind("Talkward", "HearBroadcast", true)
+            .Value;*/
+
+        Config.SettingChanged += (sender, args) =>
+        {
+            var setting = args.ChangedSetting;
+            var settingDef = setting.Definition;
+            var section = settingDef.Section;
+            var key = settingDef.Key;
+            if (section != "Talkward") return;
+            switch (key)
+            {
+                case "Enabled":
+                    TalkwardEnabled = setting.ConvertTo<bool>();
+                    break;
+                /*case "AlertsMobs":
+                    AlertsMobs = setting.ConvertTo<bool>();
+                    break;
+                case "Broadcast":
+                    Broadcast = setting.ConvertTo<bool>();
+                    break;
+                case "HearBroadcast":
+                    HearBroadcast = setting.ConvertTo<bool>();
+                    break;*/
+            }
+        };
+
+
+        var twitchConfig = new TwitchConfig();
+        twitchConfig.BroadcasterId = Config
+            .Bind("Talkward.Twitch", "BroadcasterId", twitchConfig.BroadcasterId)
+            .Value;
+        twitchConfig.ModeratorId = Config
+            .Bind("Talkward.Twitch", "ModeratorId", twitchConfig.ModeratorId)
+            .Value;
+        twitchConfig.ClientId = Config
+            .Bind("Talkward.Twitch", "ClientId", twitchConfig.ClientId)
+            .Value;
+        twitchConfig.DrawAuthCode = Config
+            .Bind("Talkward.Twitch", "DrawAuthCode", twitchConfig.DrawAuthCode)
+            .Value;
+        twitchConfig.OpenAuthInBrowser = Config
+            .Bind("Talkward.Twitch", "OpenAuthInBrowser", twitchConfig.OpenAuthInBrowser)
+            .Value;
+        //twitchConfig.DisplayNameTransforms
+
+        var twitchMinBits = Config
+            .Bind("Talkward.Twitch", "TwitchMinimumBits", 100)
+            .Value;
+        var twitchSpeakCommand = Config
+            .Bind("Talkward.Twitch", "TwitchSpeakCommand", "!tw")
+            .Value;
+        var twitchWhisperCommand = Config
+            .Bind("Talkward.Twitch", "WhisperCommand", "!tww")
+            .Value;
+        var twitchCustomRewardName = Config
+            .Bind("Talkward.Twitch", "CustomRewardName", "tw")
+            .Value;
+        var twitchCustomRewardNameWhisper = Config
+            .Bind("Talkward.Twitch", "CustomRewardNameWhisper", "tww")
+            .Value;
+        var twitchSpeakHighlighted = Config
+            .Bind("Talkward.Twitch", "SpeakHighlighted", false)
+            .Value;
+        var twitchSpeakSkipSubMode = Config
+            .Bind("Talkward.Twitch", "SpeakSkipSubMode", false)
+            .Value;
+
+        var twitchInt = new TwitchIntegration(twitchConfig);
+
+        twitchInt.OnTwitchChatEvent += (_, args) =>
+        {
+            if (!TalkwardEnabled)
+                return;
+
+            var sender = args.DisplayName ?? args.UserName ?? "";
+            var message = args.Message ?? "";
+            if (args.IsBitsReward && args.Bits >= twitchMinBits)
+            {
+                var voice = message.StartsWith(twitchSpeakCommand)
+                            && message[twitchSpeakCommand.Length] == ' '
+                    ? 0
+                    : message.StartsWith(twitchWhisperCommand)
+                      && message[twitchWhisperCommand.Length] == ' '
+                        ? 1
+                        : -1;
+                if (voice >= 0)
+                    Speak(new MessageContent {Voice = voice, Message = message, Sender = sender});
+            }
+            else if (args.IsChannelPointsReward)
+            {
+                if (args.CustomReward == twitchCustomRewardName)
+                {
+                    Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+                }
+                else if (args.CustomReward == twitchCustomRewardNameWhisper)
+                {
+                    Speak(new MessageContent {Voice = 1, Message = message, Sender = sender});
+                }
+            }
+            else if (args.IsHighlighted && twitchSpeakHighlighted)
+            {
+                Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+            }
+            else if (args.IsSkippingSubMode && twitchSpeakSkipSubMode)
+            {
+                Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+            }
+            else if (args.IsChannelPointsReward
+                     && args.CustomReward == twitchCustomRewardNameWhisper)
+            {
+                Speak(new MessageContent {Voice = 1, Message = message, Sender = sender});
+            }
+            else if (args.IsHighlighted && twitchSpeakHighlighted)
+            {
+                Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+            }
+            else if (args.IsSkippingSubMode && twitchSpeakSkipSubMode)
+            {
+                Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+            }
+        };
 
         Logger.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
     }

@@ -1,10 +1,12 @@
 ﻿using System.Globalization;
 using System.Linq;
+using JetBrains.Annotations;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
 namespace Finder.MsBuild.Task;
 
+[PublicAPI]
 public class SteamFindMatchingAppsTask : Microsoft.Build.Utilities.Task
 {
     [Required]

@@ -1,8 +1,11 @@
-﻿namespace Finder.MsBuild.Task;
+﻿using JetBrains.Annotations;
+
+namespace Finder.MsBuild.Task;
 
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
+[PublicAPI]
 public class SteamFindAppByIdTask : Task
 {
     [Required]

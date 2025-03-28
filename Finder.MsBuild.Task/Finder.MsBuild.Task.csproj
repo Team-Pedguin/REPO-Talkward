@@ -3,15 +3,19 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-        <Version>1.0.7</Version>
+        <Version>1.1.2</Version>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="F23.StringSimilarity" Version="6.0.0" />
       <PackageReference Include="Gameloop.Vdf" Version="0.6.2" />
-      <PackageReference Include="Microsoft.Build.Framework" Version="17.13.9" />
-      <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.13.9" />
+      <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" PrivateAssets="all" />
+      <PackageReference Include="Microsoft.Build.Framework" Version="$(MsBuildFrameworkVersion)" />
+      <PackageReference Include="Microsoft.Build.Utilities.Core" Version="$(MsBuildFrameworkVersion)" />
       <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+      <PackageReference Include="NuGet.Frameworks" Version="6.13.2" />
+      <PackageReference Include="NuGet.Resolver" Version="6.13.2" />
+      <PackageReference Include="NuGet.Versioning" Version="6.13.2" />
     </ItemGroup>
 
     <ItemGroup>
@@ -34,7 +38,7 @@
             Outputs="$(NupkgPath)">
         <!-- delete previous nupkg -->
         <ItemGroup>
-            <_NupkgFilesToDelete Include="$(SolutionDir)\nuget\Finder.MsBuild.Task*.nupkg" />
+            <_NupkgFilesToDelete Include="$(SolutionDir)nuget\Finder.MsBuild.Task*.nupkg" />
         </ItemGroup>
         
         <Delete Files="@(_NupkgFilesToDelete)" />
@@ -45,7 +49,7 @@
                 NuspecProperties="version=$(Version)"
                 NuspecBasePath="$(OutDir)"
                 NuspecOutputPath="$(NuspecOutputPath)"
-                PackageOutputPath="$(SolutionDir)\nuget"
+                PackageOutputPath="$(SolutionDir)nuget"
                 RestoreOutputPath="$(RestoreOutputPath)"
                 SymbolPackageFormat="snupkg"/>
     </Target>

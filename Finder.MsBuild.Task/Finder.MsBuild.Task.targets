@@ -39,4 +39,26 @@
             OutputFile="$(OutDir)/MyPackage.zip"
             Type="zip" />
     -->
+    
+    <UsingTask TaskName="FindNetStandardCompatibleContent"
+               AssemblyFile="$(MSBuildThisFileDirectory)Finder.MsBuild.Task.dll"/>
+    <!-- example:
+        <FindNetStandardCompatibleContent
+            NuGetPackageRoot="$(NuGetPackageRoot)"
+            MaximumNetStandard="2.1"
+            Packages="@(PackageReference)">
+            <Output TaskParameter="LibraryContentFiles" ItemName="NuGetPackageContentFiles"/>
+        </FindNetStandardCompatibleContent>
+    -->
+    
+    <UsingTask TaskName="FindNetStandardCompatibleContentViaNuGet"
+               AssemblyFile="$(MSBuildThisFileDirectory)Finder.MsBuild.Task.dll"/>
+    <!-- example:
+        <FindNetStandardCompatibleContentViaNuGet
+            NuGetPackageRoot="$(NuGetPackageRoot)"
+            MaximumNetStandard="2.1"
+            Packages="@(PackageReference)">
+            <Output TaskParameter="LibraryContentFiles" ItemName="NuGetPackageContentFiles"/>
+        </FindNetStandardCompatibleContentViaNuGet>
+    -->
 </Project>

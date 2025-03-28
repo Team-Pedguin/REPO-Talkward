@@ -1,8 +1,10 @@
 ﻿using System.Linq;
+using JetBrains.Annotations;
 using Microsoft.Build.Framework;
 
 namespace Finder.MsBuild.Task;
 
+[PublicAPI]
 public class SteamFindBestMatchingAppTask : Microsoft.Build.Utilities.Task
 {
     [Required]

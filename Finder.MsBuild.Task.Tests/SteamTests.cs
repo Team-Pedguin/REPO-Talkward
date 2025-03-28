@@ -1,3 +1,5 @@
+using FluentAssertions;
+
 namespace Finder.MsBuild.Task.Tests;
 
 public class SteamTests
@@ -10,16 +12,16 @@ public class SteamTests
             TestContext.WriteLine("No directories found.");
         foreach (var dir in dirs)
             TestContext.WriteLine(dir);
-        Assert.IsNotNull(dirs);
+        dirs.Should().NotBeNull();
     }
 
     [Test]
     public void FindGameTest()
     {
         var apps = Steam.SearchForApps("R.E.P.O");
-        Assert.IsNotNull(apps);
+        AssertionExtensions.Should((object) apps).NotBeNull();
         var app = apps.FirstOrDefault();
-        Assert.That(app.Id, Is.EqualTo(3241660));
+        app.Id.Should().Be(3241660);
         TestContext.WriteLine("{0}: {1} @ {2} ({3})",
             app.Id, app.Name, app.Path, app.Score);
     }
@@ -28,7 +30,7 @@ public class SteamTests
     public void GetGameDirTest()
     {
         var dir = Steam.GetAppInstallDirectory(3241660);
-        Assert.IsNotNull(dir);
+        dir.Should().NotBeNull();
         TestContext.WriteLine(dir);
     }
 }

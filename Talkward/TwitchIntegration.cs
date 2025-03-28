@@ -125,7 +125,7 @@ public class TwitchIntegration
 
             _twitchAuthPromptCode = userCode;
 
-            if (cfg.OpenTwitchAuthInBrowser)
+            if (cfg.OpenAuthInBrowser)
                 Application.OpenURL(verificationUri);
 
             _authorized.Set(false);

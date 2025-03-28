@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using JetBrains.Annotations;
 
 namespace Finder.MsBuild.Task;
 
@@ -13,6 +14,7 @@ using Microsoft.Build.Utilities;
 /// You specify what type of compression (default is zip) and the output file name.
 /// You can also provide a Path metadata property on each item to rename each item in the archive. 
 /// </summary>
+[PublicAPI]
 public class Pack : Task
 {
     [Required]

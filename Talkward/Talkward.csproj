@@ -5,31 +5,33 @@
 
         <RepoGameDir Condition="'$(RepoGameDir)'==''">C:\SteamLibrary\steamapps\common\REPO</RepoGameDir>
         <RepoGameDataDir>$(RepoGameDir)\REPO_Data\Managed</RepoGameDataDir>
-        
+
         <ILRepackTargetsFile>$(MSBuildThisFileDirectory)ILRepack.targets</ILRepackTargetsFile>
-        <NoWarn>CS1685</NoWarn>
+        <NoWarn>CS1685,CS9084,CS9080</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="BitFaster.Caching" Version="2.5.3" />
-        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.3" />
-        <PackageReference Include="System.IO.Pipelines" Version="9.0.3" />
-        <PackageReference Include="System.Memory" Version="4.6.0" />
-        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0" />
-        <PackageReference Include="System.Text.Json" Version="9.0.3" />
-        <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.0" />
-        <PackageReference Include="TwitchLib" Version="3.5.3" />
+        <PackageReference Include="BitFaster.Caching" Version="2.5.3"/>
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.3"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.3"/>
+        <PackageReference Include="System.Buffers" Version="4.6.1"/>
+        <PackageReference Include="System.IO.Pipelines" Version="9.0.3"/>
+        <PackageReference Include="System.Memory" Version="4.6.0"/>
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.0"/>
+        <PackageReference Include="System.Text.Json" Version="9.0.3"/>
+        <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.0"/>
+        <PackageReference Include="TwitchLib" Version="3.5.3"/>
         <PackageReference Include="Zehs.REPOLib" Version="1.4.1"/>
         <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" Aliases="private" PrivateAssets="all"/>
         <PackageReference Include="BepInEx.Core" Version="5.4.21.0" IncludeAssets="compile"/>
         <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" PrivateAssets="all"/>
         <PackageReference Include="UnityEngine.Modules" Version="2022.3.21" IncludeAssets="compile"/>
     </ItemGroup>
-    
+
     <ItemGroup>
-      <ProjectReference Include="..\Talkward.Polyfills\Talkward.Polyfills.csproj">
-          <Private>True</Private>
-      </ProjectReference>
+        <ProjectReference Include="..\Talkward.Polyfills\Talkward.Polyfills.csproj">
+            <Private>True</Private>
+        </ProjectReference>
     </ItemGroup>
 
     <Target Name="FindRepoGameDir" BeforeTargets="ResolveReferences">
@@ -40,90 +42,78 @@
             <RepoGameDataDir>$(RepoGameDir)\REPO_Data\Managed</RepoGameDataDir>
         </PropertyGroup>
         <ItemGroup>
-            <Reference Include="$(RepoGameDataDir)\Assembly-CSharp.dll" />
+            <Reference Include="$(RepoGameDataDir)\Assembly-CSharp.dll"/>
         </ItemGroup>
     </Target>
-    
+
     <ItemGroup>
         <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.40">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Finder.MsBuild.Task" Version="1.0.7" PrivateAssets="all"/>
+        <PackageReference Include="Finder.MsBuild.Task" Version="1.1.2" PrivateAssets="all"/>
     </ItemGroup>
 
-    <Target Name="GenerateResolvedReferences" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+        <Folder Include="Sam\"/>
+    </ItemGroup>
+
+    <Target Name="GenerateResolvedReferences"
+            AfterTargets="ResolvePackageAssets">
+        <FindNetStandardCompatibleContentViaNuGet
+                NuGetPackageRoot="$(NuGetPackageRoot)"
+                MaximumNetStandard="2.1"
+                Packages="@(PackageReference)">
+            <Output TaskParameter="LibraryContentFiles"
+                    ItemName="NuGetPackageContentFile"/>
+        </FindNetStandardCompatibleContentViaNuGet>
         <ItemGroup>
-            <_ResolvedCompileFileDefinitions Include="@(ResolvedCompileFileDefinitions)">
-                <Name>$([System.IO.Path]::GetFileNameWithoutExtension('%(Identity)'))</Name>
-            </_ResolvedCompileFileDefinitions>
-            <ResolvedReference Include="@(_ResolvedCompileFileDefinitions)"
-                                 Condition="
-             '%(Name)'=='System.Text.Json' OR
-             '%(Name)'=='System.Memory' OR
-             '%(Name)'=='System.IO.Pipelines' OR
-             '%(Name)'=='Microsoft.Bcl.AsyncInterfaces' OR
-             '%(Name)'=='System.Threading.Tasks.Extensions'
-            " />
-            <!-- attempt to downgrade any netstandard2.1 to netstandard2.0 if the file exists -->
-            <ResolvedReference Update="@(ResolvedReference)">
-                <Dir>$([System.IO.Path]::GetDirectoryName('%(Identity)'))</Dir>
-                <File>$([System.IO.Path]::GetFileName('%(Identity)'))</File>
+            <ResolvedReference Include="@(NuGetPackageContentFile)"
+                                     Condition="'%(NuGetPackageContentFile.Extension)'=='.dll'">
+                <Package>%(NuGetPackageContentFile.Package)</Package>
             </ResolvedReference>
-            <ResolvedReference Update="@(ResolvedReference)">
-                <DirName>$([System.IO.Path]::GetFileName('%(Dir)'))</DirName>
-            </ResolvedReference>
-            <ResolvedReference Update="@(ResolvedReference)" Condition="'%(DirName)'=='netstandard2.1'">
-                <Dir>$([System.IO.Path]::GetDirectoryName('%(Dir)'))\netstandard2.0</Dir>
-            </ResolvedReference>
-            <ResolvedReferenceNS21 Include="@(ResolvedReference)" Condition="'%(DirName)'=='netstandard2.1'">
-                <Replacement>%(Dir)\$([System.IO.Path]::GetFileName('%(Identity)'))</Replacement>
-            </ResolvedReferenceNS21>
-            <ResolvedReference Remove="@(ResolvedReference)" Condition="'%(DirName)'=='netstandard2.1'"/>
-            <ResolvedReference Include="@(ResolvedReferenceNS21->'%(Replacement)')"/>
         </ItemGroup>
+
+        <Message Text="ResolvedReference: '%(ResolvedReference.Package)> %(ResolvedReference.Identity)')" Importance="high"/>
     </Target>
-    
-    <Target Name="PackForThunderstore" AfterTargets="ILRepacker" DependsOnTargets="GenerateResolvedReferences">
+
+    <Target Name="PackForThunderstore" AfterTargets="ILRepacker"
+            DependsOnTargets="GenerateResolvedReferences;CollectNuGetReferences">
         <!-- icon.png, manifest.json, README.md, and LICENSE.txt are copied from the root of the project -->
         <!-- TalkwardMod.dll is the merged assembly -->
-        
+
         <ItemGroup>
-            <ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.dll" />
-            <ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.pdb" />
+            <ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.dll"/>
+            <ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.pdb"/>
             <!--<ThunderstorePackage Include="$(OutputPath)$(AssemblyName)Mod.xml" />-->
-            <ThunderstorePackage Include="$(SolutionDir)icon.png" />
-            <ThunderstorePackage Include="$(SolutionDir)manifest.json" />
-            <ThunderstorePackage Include="$(SolutionDir)README.md" />
-            <ThunderstorePackage Include="$(SolutionDir)LICENSE.txt" />
+            <ThunderstorePackage Include="$(SolutionDir)icon.png"/>
+            <ThunderstorePackage Include="$(SolutionDir)manifest.json"/>
+            <ThunderstorePackage Include="$(SolutionDir)README.md"/>
+            <ThunderstorePackage Include="$(SolutionDir)LICENSE.txt"/>
         </ItemGroup>
-        
+
         <ItemGroup>
-            <PackReference Include="@(NuGetReference)"
-                           Condition="
-             '%(Name)'=='Microsoft.Extensions.DependencyInjection.Abstractions' OR
-             '%(Name)'=='System.Text.Encodings.Web' OR
-              $([System.String]::Copy('%(Name)').StartsWith('TwitchLib')) OR
-              $([System.String]::Copy('%(Name)').StartsWith('BitFaster'))
-            " />
-            <PackReference Include="@(ResolvedReference)"
-                                 Condition="
-             '%(Name)'=='System.Text.Json' OR
-             '%(Name)'=='System.Memory' OR
-             '%(Name)'=='System.IO.Pipelines' OR
-             '%(Name)'=='Microsoft.Bcl.AsyncInterfaces' OR
-             '%(Name)'=='System.Threading.Tasks.Extensions'
-            " />
+            <PackReference Include="@(NuGetPackageLibraryFile)"/>
+            <PackReference Include="@(ResolvedReference)"/>
         </ItemGroup>
-        <Message Text="Additional: @(PackReference->'%(Name)')" Importance="high" />
-        <Message Text="Add. Files: @(PackReference)" Importance="high" />
-        
+        <Message Text="Additional: @(PackReference->'%(Name)')" Importance="high"/>
+        <Message Text="Add. Files: @(PackReference)" Importance="high"/>
+
         <!-- zip them all up -->
         <Pack
-            Overwrite="true"
-            Verbose="true"
-            Items="@(ThunderstorePackage);@(PackReference)"
-            OutputFile="$(OutputPath)TeamPedguin-$(AssemblyName)-$(Version).zip"
-            Type="zip" />
+                Overwrite="true"
+                Verbose="true"
+                Items="@(ThunderstorePackage);@(PackReference)"
+                OutputFile="$(OutputPath)TeamPedguin-$(AssemblyName)-$(Version).zip"
+                Type="zip"/>
+    </Target>
+
+    <Target Name="CollectNuGetReferences" AfterTargets="ResolvePackageAssets" BeforeTargets="Compile">
+        <ItemGroup>
+            <NuGetReference Include="@(Reference)" Condition="$([System.String]::Copy('%(Identity)').StartsWith('$(NuGetPackageRoot)'))">
+                <Name>$([System.IO.Path]::GetFileNameWithoutExtension('%(Identity)'))</Name>
+            </NuGetReference>
+            <Message Text="NuGetReference: @(NuGetReference)" Importance="high"/>
+        </ItemGroup>
     </Target>
 </Project>

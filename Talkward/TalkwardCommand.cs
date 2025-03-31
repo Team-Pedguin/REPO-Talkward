@@ -1,7 +1,7 @@
 ﻿using System.Text;
+using System.Reflection;
 using BepInEx.Logging;
 using REPOLib.Commands;
-using Sirenix.Utilities;
 using Unity.VisualScripting;
 
 namespace Talkward;
@@ -9,6 +9,37 @@ namespace Talkward;
 [PublicAPI]
 public static class TalkwardCommand
 {
+    private static class CommandManagerReflection
+    {
+        private static readonly Type CommandManagerType = typeof(Console).Assembly.GetType("REPOLib.Commands.CommandManager");
+        private static readonly PropertyInfo CommandsEnabledProperty = CommandManagerType.GetProperty("CommandsEnabled", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+        private static readonly PropertyInfo CommandExecutionMethodsProperty = CommandManagerType.GetProperty("CommandExecutionMethods", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+
+        public static Dictionary<string, bool>? GetCommandsEnabled()
+        {
+            return CommandsEnabledProperty.GetValue(null) as Dictionary<string, bool>;
+        }
+
+        public static Dictionary<string, MethodInfo>? GetCommandExecutionMethods()
+        {
+            return CommandExecutionMethodsProperty.GetValue(null) as Dictionary<string, MethodInfo>;
+        }
+
+        public static bool TryGetCommandEnabled(string cmd, out bool enabled)
+        {
+            enabled = false;
+            var commandsEnabled = GetCommandsEnabled();
+            return commandsEnabled?.TryGetValue(cmd, out enabled) ?? false;
+        }
+
+        public static bool TryGetCommandExecutionMethod(string cmd, [MaybeNullWhen(false)] out MethodInfo mi)
+        {
+            mi = null;
+            var executionMethods = GetCommandExecutionMethods();
+            return executionMethods?.TryGetValue(cmd, out mi) ?? false;
+        }
+    }
+
     [CommandInitializer]
     public static void Initialize()
     {
@@ -21,14 +52,20 @@ public static class TalkwardCommand
                 : argStr.Slice(0, indexOfFirstSpace);
 
             var cmd = firstArg.ToString();
+
+            if (!CommandManagerReflection.TryGetCommandEnabled(cmd, out var enabled))
+            {
+                Plugin.Logger?.LogWarning($"{cmd} was not found.");
+                return false;
+            }
             
-            if (CommandManager.CommandsEnabled.TryGetValue(cmd, out var enabled) && !enabled)
+            if (enabled)
             {
                 Plugin.Logger?.LogWarning($"{cmd} is disabled.");
                 return false;
             }
 
-            if (!CommandManager.CommandExecutionMethods.TryGetValue(cmd, out var mi))
+            if (!CommandManagerReflection.TryGetCommandExecutionMethod(cmd, out var mi))
                 return false;
 
             var argStrAfterCmd = argStr.Slice(indexOfFirstSpace + 1).ToString();
@@ -39,7 +76,7 @@ public static class TalkwardCommand
             }
             catch (Exception ex)
             {
-                Plugin.Logger?.LogError($"{ex.GetType().GetNiceName()} in {cmd}: {ex.Message}");
+                Plugin.Logger?.LogError($"{ex.GetType().FullName} in {cmd}: {ex.Message}");
                 return false;
             }
 

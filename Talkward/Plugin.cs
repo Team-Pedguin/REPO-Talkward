@@ -62,6 +62,18 @@ public class Plugin : BaseUnityPlugin
     [NonSerialized]
     public GameObject? staticGameObject;
 
+    [NonSerialized]
+    private TwitchConfig _twitchConfig = TwitchConfig.Default;
+
+    private int _twitchMinBits;
+    private string _twitchSpeakCommand = "!tw";
+    private string _twitchWhisperCommand = "!tww";
+    private string _twitchCustomRewardName = "tw";
+    private string _twitchCustomRewardNameWhisper = "tww";
+    private bool _twitchSpeakHighlighted;
+    private bool _twitchSpeakSkipSubMode;
+    private UnityTwitchIntegration? _twitchInt;
+
     public bool HearBroadcast
     {
         get => _hearBroadcast;
@@ -70,6 +82,9 @@ public class Plugin : BaseUnityPlugin
 
     private void Awake()
     {
+        UnityThreadHelper.Post(static _ => Logger?.LogInfo("UnityThreadHelper initialized"), null);
+        UnityThreadHelper.Initialize();
+
         Logger = base.Logger;
 
         if (Instance)
@@ -163,84 +178,85 @@ public class Plugin : BaseUnityPlugin
             .Value;
         //twitchConfig.DisplayNameTransforms
 
-        var twitchMinBits = Config
+        _twitchMinBits = Config
             .Bind("Talkward.Twitch", "TwitchMinimumBits", 100)
             .Value;
-        var twitchSpeakCommand = Config
+        _twitchSpeakCommand = Config
             .Bind("Talkward.Twitch", "TwitchSpeakCommand", "!tw")
-            .Value;
-        var twitchWhisperCommand = Config
+            .Value ?? "!tw";
+        _twitchWhisperCommand = Config
             .Bind("Talkward.Twitch", "WhisperCommand", "!tww")
-            .Value;
-        var twitchCustomRewardName = Config
+            .Value ?? "!tww";
+        _twitchCustomRewardName = Config
             .Bind("Talkward.Twitch", "CustomRewardName", "tw")
-            .Value;
-        var twitchCustomRewardNameWhisper = Config
+            .Value ?? "tw";
+        _twitchCustomRewardNameWhisper = Config
             .Bind("Talkward.Twitch", "CustomRewardNameWhisper", "tww")
-            .Value;
-        var twitchSpeakHighlighted = Config
+            .Value ?? "tww";
+        _twitchSpeakHighlighted = Config
             .Bind("Talkward.Twitch", "SpeakHighlighted", false)
             .Value;
-        var twitchSpeakSkipSubMode = Config
+        _twitchSpeakSkipSubMode = Config
             .Bind("Talkward.Twitch", "SpeakSkipSubMode", false)
             .Value;
 
-        var twitchInt = new TwitchIntegration(twitchConfig);
+        _twitchConfig = twitchConfig;
 
-        twitchInt.OnTwitchChatEvent += (_, args) =>
+        Logger.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
+        
+        UnityThreadHelper.Schedule(Time.unscaledTimeAsDouble + 10, _ =>
         {
-            if (!TalkwardEnabled)
-                return;
+            _twitchInt = new UnityTwitchIntegration(_twitchConfig);
+            _twitchInt.OnTwitchChatEvent += HandleTwitchChatEvent;
+        }, null);
+    }
 
-            var sender = args.DisplayName ?? args.UserName ?? "";
-            var message = args.Message ?? "";
-            if (args.IsBitsReward && args.Bits >= twitchMinBits)
-            {
-                var voice = message.StartsWith(twitchSpeakCommand)
-                            && message[twitchSpeakCommand.Length] == ' '
-                    ? 0
-                    : message.StartsWith(twitchWhisperCommand)
-                      && message[twitchWhisperCommand.Length] == ' '
-                        ? 1
-                        : -1;
-                if (voice >= 0)
-                    Speak(new MessageContent {Voice = voice, Message = message, Sender = sender});
-            }
-            else if (args.IsChannelPointsReward)
-            {
-                if (args.CustomReward == twitchCustomRewardName)
-                {
-                    Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
-                }
-                else if (args.CustomReward == twitchCustomRewardNameWhisper)
-                {
-                    Speak(new MessageContent {Voice = 1, Message = message, Sender = sender});
-                }
-            }
-            else if (args.IsHighlighted && twitchSpeakHighlighted)
+    private void HandleTwitchChatEvent(object _, TwitchChatEventArgs args)
+    {
+        if (!TalkwardEnabled) return;
+
+        var sender = args.DisplayName ?? args.UserName ?? "";
+        var message = args.Message ?? "";
+        if (args.IsBitsReward && args.Bits >= _twitchMinBits)
+        {
+            var voice = message.StartsWith(_twitchSpeakCommand) && message[_twitchSpeakCommand.Length] == ' '
+                ? 0
+                : message.StartsWith(_twitchWhisperCommand) && message[_twitchWhisperCommand.Length] == ' '
+                    ? 1
+                    : -1;
+            if (voice >= 0) Speak(new MessageContent {Voice = voice, Message = message, Sender = sender});
+        }
+        else if (args.IsChannelPointsReward)
+        {
+            if (args.CustomReward == _twitchCustomRewardName)
             {
                 Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
             }
-            else if (args.IsSkippingSubMode && twitchSpeakSkipSubMode)
-            {
-                Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
-            }
-            else if (args.IsChannelPointsReward
-                     && args.CustomReward == twitchCustomRewardNameWhisper)
+            else if (args.CustomReward == _twitchCustomRewardNameWhisper)
             {
                 Speak(new MessageContent {Voice = 1, Message = message, Sender = sender});
             }
-            else if (args.IsHighlighted && twitchSpeakHighlighted)
-            {
-                Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
-            }
-            else if (args.IsSkippingSubMode && twitchSpeakSkipSubMode)
-            {
-                Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
-            }
-        };
-
-        Logger.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
+        }
+        else if (args.IsHighlighted && _twitchSpeakHighlighted)
+        {
+            Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+        }
+        else if (args.IsSkippingSubMode && _twitchSpeakSkipSubMode)
+        {
+            Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+        }
+        else if (args.IsChannelPointsReward && args.CustomReward == _twitchCustomRewardNameWhisper)
+        {
+            Speak(new MessageContent {Voice = 1, Message = message, Sender = sender});
+        }
+        else if (args.IsHighlighted && _twitchSpeakHighlighted)
+        {
+            Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+        }
+        else if (args.IsSkippingSubMode && _twitchSpeakSkipSubMode)
+        {
+            Speak(new MessageContent {Voice = 0, Message = message, Sender = sender});
+        }
     }
 
 
@@ -291,4 +307,5 @@ public class Plugin : BaseUnityPlugin
         else
             _speechBehavior!.Speak(sanitized, whisper);
     }
+    
 }

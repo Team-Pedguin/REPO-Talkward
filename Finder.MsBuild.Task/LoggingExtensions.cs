@@ -37,14 +37,14 @@ namespace Finder.MsBuild.Task
                 _stopwatch = Stopwatch.StartNew();
                 _started = DateTime.UtcNow;
 
-                logger.LogMessage(_importance, $"{_operationName} Started");
+                logger.LogMessage(_importance, $"[Operation] {_operationName} started");
             }
 
             public void Dispose()
             {
                 _stopwatch.Stop();
                 var duration = _stopwatch.Elapsed;
-                _logger.LogMessage(_importance, $"{_operationName} Completed in {duration.TotalMilliseconds}ms");
+                _logger.LogMessage(_importance, $"[Operation] {_operationName} completed in {duration.TotalMilliseconds}ms");
                 _logger.LogTelemetry(_operationName, new Dictionary<string, string>
                 {
                     {"OperationName", _operationName},

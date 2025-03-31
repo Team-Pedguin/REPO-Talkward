@@ -1,13 +1,11 @@
-﻿using System.Text.Json;
-using Sirenix.Utilities;
-using UnityEngine;
+﻿using UnityEngine;
 using Debug = System.Diagnostics.Debug;
 
 namespace Talkward;
 
 public static class Helpers
 {
-    public static T Get<T>(this JsonElement element, string name, T defaultValue = default!)
+    /*public static T Get<T>(this JsonElement element, string name, T defaultValue = default!)
     {
         if (element.TryGetProperty(name, out var property))
         {
@@ -15,7 +13,7 @@ public static class Helpers
         }
 
         return defaultValue;
-    }
+    }*/
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TTo UnsafeBitCast<TFrom, TTo>(TFrom source)
@@ -78,7 +76,7 @@ public static class Helpers
 
             var j = i == components.Length - 1 ? "└" : "├";
 
-            var compName = component.GetType().GetNiceFullName();
+            var compName = component.GetType().Name;
             var compId = component.GetInstanceID();
 
             var additionalInfo = component switch

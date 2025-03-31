@@ -30,4 +30,10 @@
       <ProjectReference Include="..\Talkward\Talkward.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Update="UnityThreadHelperTests.2.cs">
+        <DependentUpon>UnityThreadHelperTests.cs</DependentUpon>
+      </Compile>
+    </ItemGroup>
+
 </Project>

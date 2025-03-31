@@ -1,0 +1,66 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <Version>1.1.8</Version>
+        <RootNamespace />
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageOutputPath>$(SolutionDir)nuget</PackageOutputPath>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <NuspecProperties>version=$(Version)</NuspecProperties>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+        
+        <PackageId>Talkward.TwitchLib</PackageId>
+        <Title>TwitchLib</Title>
+        <Authors>Team-Pedguin</Authors>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/Team-Pedguin/REPO-Talkward/tree/Talkward.TwitchLib</PackageProjectUrl>
+        <PackageDescription>Provides a consistent TwitchLib experience.</PackageDescription>
+        <Copyright>Team-Pedguin</Copyright>
+        <PackageTags>Twitch,TwitchLib</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+    
+
+    <ItemGroup>
+        <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.40">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Finder.MsBuild.Task" Version="1.2.1" PrivateAssets="all"/>
+        <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-e47ba7f" PrivateAssets="all" />
+        <PackageReference Include="TwitchLib.Client" Version="4.0.0-preview-fd131763416cb9f1a31705ca609566d7e7e7fac8" PrivateAssets="all" />
+        <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0-preview-dbc970c" PrivateAssets="all" />
+        <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-f833b1ab1ebef37618dba3fbb1e0a661ff183af5" PrivateAssets="all" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+    
+    <Target Name="GenerateResolvedReferences"
+            AfterTargets="ResolvePackageAssets"
+            Returns="@(NuGetPackageContentFile)">
+        <!--<Message Text="PackageReference: %(PackageReference.Identity)" Importance="high"/>-->
+        <FindNetStandardCompatibleContentViaNuGet
+                NuGetPackageRoot="$(NuGetPackageRoot)"
+                MaximumNetStandard="2.1"
+                Packages="@(PackageReference)">
+            <Output TaskParameter="LibraryContentFiles"
+                    ItemName="NuGetPackageContentFile"/>
+        </FindNetStandardCompatibleContentViaNuGet>
+    </Target>
+    
+    <Target Name="CleanUpOldNupkg"
+            AfterTargets="Build"
+            BeforeTargets="Pack"
+            DependsOnTargets="ILRepacker">
+        <ItemGroup>
+            <_NupkgFilesToDelete Include="$(SolutionDir)nuget\Talkward.TwitchLib*.nupkg" />
+        </ItemGroup>
+        <Delete Files="@(_NupkgFilesToDelete)" />
+    </Target>
+</Project>

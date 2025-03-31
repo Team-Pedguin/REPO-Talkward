@@ -4,7 +4,7 @@
             DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences"
             Returns="@(ReferenceCopyLocalPaths)" />
     
-    <Target Name="ILRepacker" AfterTargets="Build" DependsOnTargets="GenerateResolvedReferences">
+    <Target Name="ILRepacker" AfterTargets="Build" BeforeTargets="Pack" DependsOnTargets="GenerateResolvedReferences">
         <!-- merge pdbs -->
         <Message Text="NuGetPackageContentFile: %(NuGetPackageContentFile.Package)> %(NuGetPackageContentFile.Identity)" Importance="high"/>
 
@@ -15,14 +15,15 @@
 
         <!-- collect assemblies to merge and lib paths -->
         <ItemGroup>
-            <_IlRepackReferenceDir Include="@(ReferenceCopyLocalPaths->'%(RootDir)%(Directory)')"
-                                   Condition="'%(ReferenceCopyLocalPaths.Extension)'=='.dll'"/>
             <_IlRepackReferenceDir Include="@(NuGetPackageContentFile->'%(RootDir)%(Directory)')"
                                    Condition="'%(NuGetPackageContentFile.Extension)'=='.dll' AND '%(NuGetPackageContentFile.AssetType)'=='compile'"/>
 
-            <!-- any private refs (eg. Talkward.Polyfills) -->
+            <!-- any private refs -->
             <IlRepackAssembly Include="@(ReferenceCopyLocalPaths)"
-                                   Condition="'%(ReferenceCopyLocalPaths.Extension)'=='.dll'"/>
+                              Condition="$([System.String]::Copy('%(Identity)').EndsWith('.dll'))"/>
+            <!-- TwitchLib -->
+            <IlRepackAssembly Include="@(NuGetPackageContentFile)"
+                              Condition="$([System.String]::Copy('%(Identity)').EndsWith('.dll')) AND $([System.String]::Copy('%(Package)').StartsWith('TwitchLib'))"/>
 
             <!-- set Name metadata for each -->
             <IlRepackAssembly Update="*">
@@ -37,18 +38,33 @@
             <_IlRepackReferenceDir Remove="*"/>
         </ItemGroup>
         
+        <!--<Message Text="IlRepackAssembly: @(IlRepackAssembly)" Importance="high"/>-->
+        
+        <!-- move original dll into subdir -->
+        <MakeDir Directories="$(OutputPath)backup"/>
+        <Move SourceFiles="$(OutputPath)$(AssemblyName).dll"
+              DestinationFiles="$(OutputPath)backup\$(AssemblyName).dll"
+              ContinueOnError="true"/>
+        
         <!-- merge -->
         <ILRepack
                 Parallel="true"
-                Internalize="true"
+                Internalize="false"
                 NoRepackRes="true"
                 DebugInfo="$(IlRepackDebugInfo)"
-                TargetKind="SameAsPrimaryAssembly"
-                AttributeFile="$(OutputPath)$(AssemblyName).dll"
-                InputAssemblies="$(OutputPath)$(AssemblyName).dll;@(IlRepackAssembly)"
-                OutputFile="$(OutputPath)$(AssemblyName)Mod.dll"
+                TargetKind="Dll"
+                AttributeFile="$(OutputPath)backup\$(AssemblyName).dll"
+                InputAssemblies="$(OutputPath)backup\$(AssemblyName).dll;@(IlRepackAssembly)"
+                MergeIlLinkerFiles="true"
+                XmlDocumentation="true"
+                OutputFile="$(OutputPath)$(AssemblyName).Merged.dll"
                 LibraryPath="@(IlRepackReferenceDir)"
+                CopyAttributes="false"
         />
+        
+        <Move SourceFiles="$(OutputPath)$(AssemblyName).Merged.dll"
+              DestinationFiles="$(OutputPath)$(AssemblyName).dll"
+              ContinueOnError="true"/>
 
         <!-- report -->
         <Message Text="Merged: @(IlRepackAssembly->'%(Name)')" Importance="high" />

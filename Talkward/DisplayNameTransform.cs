@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -7,23 +6,18 @@ namespace Talkward;
 
 public sealed class DisplayNameTransform
 {
-    [JsonPropertyName("match")]
     public required string Match { get; set; }
 
-    [JsonPropertyName("replace")]
     public required string Replace { get; set; }
 
-    [JsonPropertyName("flags")]
     public string? Flags { get; set; }
 
-    [JsonPropertyName("maxMatches"), DefaultValue(1)]
     public int MaxMatches { get; set; } = 1;
 
     private AtomicBoolean _init;
 
     private Regex? _regex;
 
-    [JsonIgnore]
     [MemberNotNull(nameof(_regex))]
     public Regex Regex
     {

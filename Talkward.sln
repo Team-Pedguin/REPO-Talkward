@@ -6,6 +6,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Configuration", "Configurat
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
 		manifest.json = manifest.json
+		nuget.config = nuget.config
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Talkward.Polyfills", "Talkward.Polyfills\Talkward.Polyfills.csproj", "{07FFC1FC-F429-42B5-B341-661C8A939651}"
@@ -26,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Talkward.Test", "Talkward.T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Talkward.Sam", "Talkward.Sam\Talkward.Sam.csproj", "{05DB0DF7-7DB9-49DD-84C9-8445570FC785}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Talkward.TwitchLib", "Talkward.TwitchLib\Talkward.TwitchLib.csproj", "{C437D126-6112-4661-B7BE-3563101DA2D7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,21 +38,29 @@ Global
 		{4E86C5E0-F7A6-4C1B-BA01-2947CC19F0C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4E86C5E0-F7A6-4C1B-BA01-2947CC19F0C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4E86C5E0-F7A6-4C1B-BA01-2947CC19F0C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E86C5E0-F7A6-4C1B-BA01-2947CC19F0C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{07FFC1FC-F429-42B5-B341-661C8A939651}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{07FFC1FC-F429-42B5-B341-661C8A939651}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{07FFC1FC-F429-42B5-B341-661C8A939651}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07FFC1FC-F429-42B5-B341-661C8A939651}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8CDA0DF6-137B-4754-A6F5-359551178F04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8CDA0DF6-137B-4754-A6F5-359551178F04}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8CDA0DF6-137B-4754-A6F5-359551178F04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CDA0DF6-137B-4754-A6F5-359551178F04}.Release|Any CPU.Build.0 = Release|Any CPU
 		{23796AE0-1750-4794-94BD-D3911724F78E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{23796AE0-1750-4794-94BD-D3911724F78E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{23796AE0-1750-4794-94BD-D3911724F78E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23796AE0-1750-4794-94BD-D3911724F78E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FCA0DA98-95EA-41C0-AD52-19564587C342}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FCA0DA98-95EA-41C0-AD52-19564587C342}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FCA0DA98-95EA-41C0-AD52-19564587C342}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FCA0DA98-95EA-41C0-AD52-19564587C342}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05DB0DF7-7DB9-49DD-84C9-8445570FC785}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{05DB0DF7-7DB9-49DD-84C9-8445570FC785}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05DB0DF7-7DB9-49DD-84C9-8445570FC785}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05DB0DF7-7DB9-49DD-84C9-8445570FC785}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C437D126-6112-4661-B7BE-3563101DA2D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C437D126-6112-4661-B7BE-3563101DA2D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C437D126-6112-4661-B7BE-3563101DA2D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C437D126-6112-4661-B7BE-3563101DA2D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8CDA0DF6-137B-4754-A6F5-359551178F04} = {2FE7FCDE-E438-4563-BFC2-DE3DA56807AF}

@@ -20,7 +20,7 @@ using ILogger = NuGet.Common.ILogger;
 namespace Finder.MsBuild.Task;
 
 [PublicAPI]
-public sealed class FindNetStandardCompatibleContentViaNuGet : FindNetStandardCompatibleContentBase
+public sealed partial class FindNetStandardCompatibleContentViaNuGet : FindNetStandardCompatibleContentBase
 {
     public bool FullDependencyGraph { get; set; } = true;
     
@@ -152,7 +152,7 @@ public sealed class FindNetStandardCompatibleContentViaNuGet : FindNetStandardCo
                 using (Log.LogOperation("Processing packages"))
                 {
                     Log.LogMessage($"Processing {packagesToProcess.Count} packages for content", MessageImportance.Normal);
-                    int filesFound = 0;
+                    var filesFound = 0;
 
                     foreach (var packageId in packagesToProcess)
                     {
@@ -177,7 +177,7 @@ public sealed class FindNetStandardCompatibleContentViaNuGet : FindNetStandardCo
                                 Log.LogMessage($"Using path from property for {packageId.Id}: {origPackagePath}", MessageImportance.Low);
 
                                 // Process content directly from the path we found
-                                int packageFiles = ProcessPackageContent(packageId.Id, origPackagePath, libPath, targetFrameworks, contentFiles);
+                                var packageFiles = ProcessPackageContent(packageId.Id, origPackagePath, libPath, targetFrameworks, contentFiles);
                                 filesFound += packageFiles;
                                 Log.LogMessage($"Found {packageFiles} files for {packageId.Id} from property path", MessageImportance.Low);
                                 continue;
@@ -198,7 +198,7 @@ public sealed class FindNetStandardCompatibleContentViaNuGet : FindNetStandardCo
                                 continue;
                             }
 
-                            int packageFiles = ProcessPackageContent(packageId.Id, fullPackagePath, libPath, targetFrameworks, contentFiles);
+                            var packageFiles = ProcessPackageContent(packageId.Id, fullPackagePath, libPath, targetFrameworks, contentFiles);
                             filesFound += packageFiles;
                             Log.LogMessage($"Found {packageFiles} files for {packageId.Id} v{packageId.Version}", MessageImportance.Low);
                         }
@@ -478,97 +478,5 @@ public sealed class FindNetStandardCompatibleContentViaNuGet : FindNetStandardCo
         }
         
         return dependencies;
-    }
-
-    private int ProcessPackageContent(string packageId, string packagePath, string libPath,
-        List<NuGetFramework> targetFrameworks, List<TaskItem> libraryContentFiles)
-    {
-        if (!Directory.Exists(libPath))
-            return 0;
-
-        int filesFound = 0;
-        
-        // Try to get package reader from nupkg or expanded folder
-        var nupkgPath = Directory.EnumerateFiles(packagePath, "*.nupkg").FirstOrDefault();
-
-        try
-        {
-            PackageReaderBase packageReader;
-            if (nupkgPath != null)
-            {
-                packageReader = new PackageArchiveReader(nupkgPath);
-                Log.LogMessage($"Using package archive reader for {packageId} from {nupkgPath}", MessageImportance.Low);
-            }
-            else
-            {
-                packageReader = new PackageFolderReader(packagePath);
-                Log.LogMessage($"Using package folder reader for {packageId} from {packagePath}", MessageImportance.Low);
-            }
-
-            using (packageReader)
-            {
-                // Get all library items
-                var libItems = packageReader.GetLibItems().ToList();
-                Log.LogMessage($"Found {libItems.Count} lib item groups in package {packageId}", MessageImportance.Low);
-
-                // Check each framework in order of preference
-                foreach (var targetFramework in targetFrameworks)
-                {
-                    // Find compatible frameworks in the package
-                    var compatibleFrameworks = libItems
-                        .Where(li => DefaultCompatibilityProvider.Instance.IsCompatible(
-                            targetFramework, li.TargetFramework))
-                        .OrderByDescending(li => li.TargetFramework.Version)
-                        .ToList();
-
-                    if (!compatibleFrameworks.Any())
-                        continue;
-
-                    var bestMatch = compatibleFrameworks.First();
-                    Log.LogMessage($"Best framework match for {packageId}: {bestMatch.TargetFramework.GetShortFolderName()} for target {targetFramework.GetShortFolderName()}", MessageImportance.Low);
-
-                    // Skip if it's just a fallback marker
-                    if (bestMatch.Items.Count() == 1 &&
-                        Path.GetFileName(bestMatch.Items.First()) == "_._")
-                    {
-                        Log.LogMessage($"Skipping fallback marker in {packageId} for {bestMatch.TargetFramework.GetShortFolderName()}", MessageImportance.Low);
-                        continue;
-                    }
-
-                    var frameworkFolder = bestMatch.TargetFramework.GetShortFolderName();
-                    var frameworkLibPath = Path.Combine(libPath, frameworkFolder);
-
-                    if (!Directory.Exists(frameworkLibPath))
-                        continue;
-
-                    var packageFilesFound = false;
-                    foreach (var file in Directory.EnumerateFiles(frameworkLibPath, "*.*",
-                                 SearchOption.TopDirectoryOnly))
-                    {
-                        if (Path.GetFileName(file) == "_._")
-                            continue;
-
-                        var taskItem = new TaskItem(file);
-                        taskItem.SetMetadata("Package", packageId);
-                        taskItem.SetMetadata("TargetFramework", frameworkFolder);
-                        libraryContentFiles.Add(taskItem);
-                        packageFilesFound = true;
-                        filesFound++;
-                    }
-
-                    if (packageFilesFound)
-                    {
-                        Log.LogMessage($"Added files from {packageId} framework {frameworkFolder}", MessageImportance.Low);
-                        break; // Found files for this package, move to next
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.LogWarning($"Error reading package {packageId}: {ex.Message}");
-        }
-        
-        return filesFound;
     }
 }

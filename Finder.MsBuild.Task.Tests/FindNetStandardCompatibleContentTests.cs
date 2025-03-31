@@ -12,7 +12,6 @@ namespace Finder.MsBuild.Task.Tests
     {
         private string _testDirectory;
         private Mock<IBuildEngine> _mockBuildEngine;
-        private TaskLoggingHelper _logger;
 
         [SetUp]
         public void Setup()
@@ -21,7 +20,6 @@ namespace Finder.MsBuild.Task.Tests
             Directory.CreateDirectory(_testDirectory);
             
             _mockBuildEngine = new Mock<IBuildEngine>();
-            _logger = new TaskLoggingHelper(_mockBuildEngine.Object, "FindNetStandardCompatibleContent");
         }
 
         [TearDown]
@@ -71,8 +69,8 @@ namespace Finder.MsBuild.Task.Tests
         public void Execute_FindsCorrectLibraryFiles()
         {
             // Arrange
-            var packageName = "TestPackage";
-            var packageVersion = "1.0.0";
+            const string packageName = "TestPackage";
+            const string packageVersion = "1.0.0";
             var packageDir = Path.Combine(_testDirectory, packageName.ToLowerInvariant(), packageVersion);
             var netStandardDir = Path.Combine(packageDir, "lib", "netstandard2.0");
             Directory.CreateDirectory(netStandardDir);
@@ -111,8 +109,8 @@ namespace Finder.MsBuild.Task.Tests
         public void Execute_SelectsHighestCompatibleFramework()
         {
             // Arrange - Create package with multiple framework versions
-            var packageName = "MultiFrameworkPackage";
-            var packageVersion = "1.0.0";
+            const string packageName = "MultiFrameworkPackage";
+            const string packageVersion = "1.0.0";
             var packageDir = Path.Combine(_testDirectory, packageName.ToLowerInvariant(), packageVersion);
             
             // Create both 2.0 and 1.6 framework directories

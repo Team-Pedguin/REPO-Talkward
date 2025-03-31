@@ -3,13 +3,13 @@
         <LangVersion>13</LangVersion>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <SolutionDir>$(MSBuildThisFileDirectory)</SolutionDir>
         <RestoreAdditionalProjectSources>
             $(SolutionDir)nuget;
             https://api.nuget.org/v3/index.json;
             https://nuget.bepinex.dev/v3/index.json;
             https://nuget.samboy.dev/v3/index.json
         </RestoreAdditionalProjectSources>
-        <SolutionDir>$(MSBuildThisFileDirectory)</SolutionDir>
         <Deterministic>true</Deterministic>
         <PathMap>$(SolutionDir)=/</PathMap>
         <GenerateFullPaths>false</GenerateFullPaths>

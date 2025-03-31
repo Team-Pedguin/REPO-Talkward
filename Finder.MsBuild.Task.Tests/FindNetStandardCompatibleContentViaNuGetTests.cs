@@ -3,14 +3,14 @@ using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Moq;
 using System.Diagnostics;
+using NUnit.Framework.Internal;
 
 namespace Finder.MsBuild.Task.Tests;
 
-public partial  class FindNetStandardCompatibleContentViaNuGetTests
+public partial class FindNetStandardCompatibleContentViaNuGetTests
 {
     private string _testDirectory;
     private Mock<IBuildEngine> _mockBuildEngine;
-    private TaskLoggingHelper _logger;
     private NuGetTraceLogger _nuGetLogger;
 
     [SetUp]
@@ -20,7 +20,6 @@ public partial  class FindNetStandardCompatibleContentViaNuGetTests
         Directory.CreateDirectory(_testDirectory);
 
         _mockBuildEngine = new Mock<IBuildEngine>();
-        _logger = new TaskLoggingHelper(_mockBuildEngine.Object, "FindNetStandardCompatibleContentViaNuGet");
         _mockBuildEngine
             .Setup(x => x.LogErrorEvent(It.IsAny<BuildErrorEventArgs>()))
             .Callback<BuildErrorEventArgs>(e =>
@@ -38,10 +37,8 @@ public partial  class FindNetStandardCompatibleContentViaNuGetTests
             .Callback<CustomBuildEventArgs>(e =>
                 Trace.TraceInformation($"MSBuild Event: {e.Message}"));
 
-        // Initialize the NuGet logger with better configuration
-        _nuGetLogger = new NuGetTraceLogger(
-            NuGet.Common.LogLevel.Debug);
-        
+        _nuGetLogger = new NuGetTraceLogger(NuGet.Common.LogLevel.Debug);
+
         TestContext.WriteLine($"Test directory: {_testDirectory}");
     }
 
@@ -72,5 +69,44 @@ public partial  class FindNetStandardCompatibleContentViaNuGetTests
         task.LibraryContentFiles.Should().BeEmpty();
     }
 
+    [Test]
+    public void Execute_WithNuGetLogger_LogsInformation()
+    {
+        // Arrange - Create a simple package with known structure
+        const string packageName = "LoggingTestPackage";
+        const string packageVersion = "1.0.0";
+        CreateTestPackageStructure(packageName, packageVersion, "netstandard2.0", true);
 
+        var taskItem = new TaskItem(packageName);
+        taskItem.SetMetadata("Version", packageVersion);
+
+        var task = new FindNetStandardCompatibleContentViaNuGet
+        {
+            NuGetPackageRoot = _testDirectory,
+            MaximumNetStandard = "2.1",
+            Packages = [taskItem],
+            BuildEngine = _mockBuildEngine.Object,
+            CustomNuGetLogger = _nuGetLogger
+        };
+
+        // Act
+        var result = task.Execute();
+
+        // Assert
+        result.Should().BeTrue();
+        task.LibraryContentFiles.Should().HaveCount(1);
+
+        // Verify logs contain expected information
+        var capturedLogMessages = TestExecutionContext.CurrentContext.CurrentResult.Output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        capturedLogMessages.Should().Contain(msg => msg.Contains("Starting package processing"));
+        capturedLogMessages.Should().Contain(msg => msg.Contains(packageName));
+        capturedLogMessages.Should().Contain(msg => msg.Contains("Maximum NetStandard version"));
+        capturedLogMessages.Should().Contain(msg => msg.Contains("Total content files found"));
+
+        // Verify operation timing is logged
+        capturedLogMessages.Should().Contain(msg => msg.Contains("[Operation]") && msg.EndsWith("started"));
+        capturedLogMessages.Should()
+            .Contain(msg => msg.Contains("[Operation]") && msg.Contains("completed") && msg.EndsWith("ms"));
+    }
 }

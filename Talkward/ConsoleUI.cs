@@ -3,7 +3,6 @@ using System.Text;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using Mono.Cecil;
-using Sirenix.Utilities;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;

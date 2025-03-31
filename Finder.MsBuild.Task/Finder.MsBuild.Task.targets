@@ -61,4 +61,16 @@
             <Output TaskParameter="LibraryContentFiles" ItemName="NuGetPackageContentFiles"/>
         </FindNetStandardCompatibleContentViaNuGet>
     -->
+    
+    <UsingTask TaskName="FilterItemsByMetadata"
+               AssemblyFile="$(MSBuildThisFileDirectory)Finder.MsBuild.Task.dll"/>
+    <!-- example:
+        <FilterItemsByMetadata
+            ItemsToFilter="@(Reference)"
+            FilterByItems="@(PackageReference)"
+            ExclusiveFilter="true"
+            MetadataName="NuGetPackageId">
+            <Output TaskParameter="FilteredItems" ItemName="FilteredReferences"/>
+        </FilterItemsByMetadata>
+    -->
 </Project>

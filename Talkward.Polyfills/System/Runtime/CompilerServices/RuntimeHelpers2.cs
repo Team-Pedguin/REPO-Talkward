@@ -1,6 +1,6 @@
 ﻿namespace System.Runtime.CompilerServices;
 
-internal static class RuntimeHelpers
+internal static class RuntimeHelpers2
 {
     public static T[] GetSubArray<T>(T[] array, Range range)
     {

@@ -9,6 +9,8 @@ public static class ModuleInitializer
     [ModuleInitializer]
     public static void Init()
     {
+        UnitTestSignal.Active = true;
+
         License.Accepted = true;
 
         // add trace listener

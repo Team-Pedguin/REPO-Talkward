@@ -3,16 +3,18 @@
     <PropertyGroup>
         <TargetFramework>netstandard2.1</TargetFramework>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-        <Version>1.2.2</Version>
+        <Version>1.3.4</Version>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+      <PackageReference Include="dnlib" Version="4.4.0" />
       <PackageReference Include="F23.StringSimilarity" Version="6.0.0" />
       <PackageReference Include="Gameloop.Vdf" Version="0.6.2" />
       <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" PrivateAssets="all" />
       <PackageReference Include="Microsoft.Build.Framework" Version="$(MsBuildFrameworkVersion)" />
       <PackageReference Include="Microsoft.Build.Utilities.Core" Version="$(MsBuildFrameworkVersion)" />
+      <PackageReference Include="Microsoft.DiaSymReader.Native" Version="1.7.0" />
       <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
       <PackageReference Include="NuGet.Frameworks" Version="6.13.2" />
       <PackageReference Include="NuGet.Resolver" Version="6.13.2" />
@@ -24,11 +26,20 @@
       <None Update="Finder.MsBuild.Task.targets">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+      <None Update="Finder.MsBuild.Task.props">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>
       <Compile Update="FindNetStandardCompatibleContentViaNuGet.Assets.cs">
         <DependentUpon>FindNetStandardCompatibleContentViaNuGet.cs</DependentUpon>
+      </Compile>
+      <Compile Update="IdentifyCauseOfAssemblyReference.AssemblyRefMatch.cs">
+        <DependentUpon>IdentifyCauseOfAssemblyReference.cs</DependentUpon>
+      </Compile>
+      <Compile Update="IdentifyCauseOfAssemblyReference.Helpers.cs">
+        <DependentUpon>IdentifyCauseOfAssemblyReference.cs</DependentUpon>
       </Compile>
     </ItemGroup>
 
@@ -54,7 +65,7 @@
         <PackTask
                 PackItem="$(NuspecPath)"
                 NuspecFile="$(NuspecPath)"
-                NuspecProperties="version=$(Version)"
+                NuspecProperties="version=$(Version);projectdir=$(MSBuildThisFileDirectory)"
                 NuspecBasePath="$(OutDir)"
                 NuspecOutputPath="$(NuspecOutputPath)"
                 PackageOutputPath="$(SolutionDir)nuget"

@@ -1,22 +1,19 @@
-﻿extern alias monomod;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Reflection.Emit;
-using HarmonyLib;
 
 namespace Talkward;
 
 [PublicAPI]
 public static class RefList
 {
-
-
-    internal static readonly FieldInfo _DynamicMethod_returnType =
+    internal static readonly FieldInfo DynamicMethodReturnTypeField =
         typeof(DynamicMethod).GetField("returnType", BindingFlags.NonPublic | BindingFlags.Instance) ??
         typeof(DynamicMethod).GetField("_returnType", BindingFlags.NonPublic | BindingFlags.Instance) ??
         typeof(DynamicMethod).GetField("m_returnType", BindingFlags.NonPublic | BindingFlags.Instance)
         ?? throw new InvalidOperationException("Cannot find returnType field on DynamicMethod");
 
 }
+public delegate ref TResult RefFunc<in T, TResult>(T a);
 
 [PublicAPI]
 public sealed class RefList<T> : List<T>
@@ -33,16 +30,16 @@ public sealed class RefList<T> : List<T>
             [typeof(List<T>)],
             objListType,
             true);
-        RefList._DynamicMethod_returnType.SetValue(dynMethod, typeof(T[]).MakeByRefType());
+        RefList.DynamicMethodReturnTypeField.SetValue(dynMethod, typeof(T[]).MakeByRefType());
         var ilGenerator = dynMethod.GetILGenerator();
         ilGenerator.Emit(OpCodes.Ldarg_0);
         ilGenerator.Emit(OpCodes.Ldflda, itemsField);
         ilGenerator.Emit(OpCodes.Ret);
-        GetInternalArray = (AccessTools.FieldRef<List<T>, T[]>)
-                dynMethod.CreateDelegate(typeof(AccessTools.FieldRef<List<T>, T[]>));
+        GetInternalArray = (RefFunc<List<T>, T[]>)
+                dynMethod.CreateDelegate(typeof(RefFunc<List<T>, T[]>));
     }
 
-    public static AccessTools.FieldRef<List<T>, T[]> GetInternalArray;
+    public static RefFunc<List<T>, T[]> GetInternalArray;
 
     public RefList()
     {

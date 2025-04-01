@@ -1,0 +1,26 @@
+﻿<Project>
+    <ItemDefinitionGroup>
+        <AssemblyReferenceCauses> <!-- the Include (ItemSpec) is the path to the assembly with the assembly reference -->
+            <AssemblyReference /> <!-- the assembly reference line (name, version, etc.) -->
+            <AssemblyReferencePath /> <!-- the path to the assembly reference -->
+            <AssemblyReferenceName /> <!-- the name of the assembly reference (without version, etc) -->
+            <AssemblyReferenceVersion /> <!-- the version of the assembly reference -->
+            
+            <ReferenceType /> <!-- Type, Field, Property, Event, Method, Parameter, Instruction, CustomAttribute -->
+            <TypeName /> <!-- the name of the declaring type -->
+            <CustomAttributeReferenceType /> <!-- for CustomAttributes: Type, Field, Property, Event, Method, Parameter -->
+            <ParameterName /> <!-- for Parameters: the name of the parameter -->
+            <ParameterIndex /> <!-- for Parameters: the index of the parameter -->
+            <MemberName /> <!-- the name of the Field, Property, Event or Method (also for Method of Instruction) -->
+            <InstructionOffset /> <!-- for Instructions: the offset of the instruction -->
+            
+            <DeclaringFile /> <!-- the file where the reference was declared (requies symbols to be loaded) -->
+            <DeclaringStartLine /> <!-- the line where the reference was declared (requies symbols to be loaded) -->
+            <DeclaringStartColumn /> <!-- the column where the reference was declared (requies symbols to be loaded) -->
+            <DeclaringEndLine /> <!-- the line where the reference was declared (requies symbols to be loaded) -->
+            <DeclaringEndColumn /> <!-- the column where the reference was declared (requies symbols to be loaded) -->
+            
+            <Description /> <!-- a full descriptive printable human-readable line of text of the reference -->
+        </AssemblyReferenceCauses>
+    </ItemDefinitionGroup>
+</Project>

@@ -30,7 +30,7 @@ public class MockTimeProvider : ITimeProvider
 /// </summary>
 public class MockPlayerLoopRegistrar : IPlayerLoopRegistrar
 {
-    public List<(Type Type, Action UpdateDelegate)> RegisteredFunctions { get; } = new();
+    public List<(Type Type, Action UpdateDelegate)> RegisteredFunctions { get; } = [];
 
     public void RegisterUpdateFunction(Type type, Action updateDelegate)
     {
@@ -57,7 +57,14 @@ public class MockPlayerLoopRegistrar : IPlayerLoopRegistrar
         {
             if (registeredType == type)
             {
-                updateDelegate();
+                try
+                {
+                    updateDelegate();
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Error invoking update function: {updateDelegate.Method.DeclaringType?.FullName}.{updateDelegate.Method.Name}", ex);
+                }
             }
         }
     }

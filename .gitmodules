@@ -1,0 +1,4 @@
+[submodule "TwitchLib.EventSub.Websockets"]
+	path = TwitchLib.EventSub.Websockets
+	url = https://github.com/TwitchLib/TwitchLib.EventSub.Websockets.git
+	shallow = true

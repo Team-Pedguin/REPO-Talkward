@@ -18,10 +18,12 @@
         <readme>README.md</readme>
     </metadata>
     <files>
-        <file src="../../../README.md" target=""/>
+        <file src="$projectdir$README.md" target=""/>
+        <file src="Finder.MsBuild.Task.props" target="build"/>
         <file src="Finder.MsBuild.Task.targets" target="build"/>
         <file src="Finder.MsBuild.Task.dll" target="build"/>
         <file src="F23.StringSimilarity.dll" target="build"/>
         <file src="Gameloop.Vdf.dll" target="build"/>
+        <file src="dnlib.dll" target="build"/>
     </files>
 </package>

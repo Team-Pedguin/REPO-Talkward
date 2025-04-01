@@ -34,6 +34,18 @@
       <Compile Update="UnityThreadHelperTests.2.cs">
         <DependentUpon>UnityThreadHelperTests.cs</DependentUpon>
       </Compile>
+      <Compile Update="SinglyLinkedListTests.Enumeration.cs">
+        <DependentUpon>SinglyLinkedListTests.cs</DependentUpon>
+      </Compile>
+      <Compile Update="SinglyLinkedListTests.LinearVisitor.cs">
+        <DependentUpon>SinglyLinkedListTests.cs</DependentUpon>
+      </Compile>
+      <Compile Update="SinglyLinkedListTests.Modification.cs">
+        <DependentUpon>SinglyLinkedListTests.cs</DependentUpon>
+      </Compile>
+      <Compile Update="SinglyLinkedListTests.Defragmentation.cs">
+        <DependentUpon>SinglyLinkedListTests.cs</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>

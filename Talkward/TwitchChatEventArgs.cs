@@ -1,54 +1,48 @@
-﻿using TwitchLib.Client.Models;
+﻿//using TwitchLib.Client.Models;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
+using TwitchLib.EventSub.Core.Models.Chat;
 
 namespace Talkward;
 
 public class TwitchChatEventArgs : EventArgs
 {
-    public ChatMessage Data { get; }
+    public ChannelChatMessage Data { get; }
 
-    public TwitchChatEventArgs(ChatMessage msg)
+    public TwitchChatEventArgs(ChannelChatMessage msg)
         => Data = msg;
 
-    public string? UserName => Data.Username;
-    public string? DisplayName => Data.DisplayName;
-    public string? Message => Data.Message;
-    public string? MessageId => Data.Id;
-    public string? Channel => Data.Channel;
-    public string? UserId => Data.UserId;
-    public string? Color => Data.ColorHex;
+    public string? UserName => Data.ChatterUserLogin;
+    public string? DisplayName => Data.ChatterUserName;
+    public string? Message => Data.Message.Text;
+    public string? MessageId => Data.MessageId;
+    public string? Channel => Data.SourceBroadcasterUserLogin;
+    public string? UserId => Data.ChatterUserId;
+    public string? Color => Data.Color;
 
     // paid messages
-    public bool IsBitsReward => Data.Bits > 0;
-    public int Bits => Data.Bits;
+    public int Bits => Data.Cheer?.Bits ?? 0;
+    public bool IsBitsReward => Bits > 0;
 
     // channel points
     public bool IsChannelPointsReward => IsHighlighted
                                          || IsSkippingSubMode
                                          || IsCustomReward;
 
-    public bool IsHighlighted => Data.IsHighlighted;
-    public bool IsSkippingSubMode => Data.IsSkippingSubMode;
-    public bool IsCustomReward => Data.CustomRewardId != null;
-    public string? CustomReward => Data.CustomRewardId;
+    public bool IsHighlighted => false; // TODO
+    public bool IsSkippingSubMode => false; // TODO
+    public bool IsCustomReward => string.IsNullOrWhiteSpace(Data.ChannelPointsCustomRewardId);
+    public string? CustomReward => IsCustomReward ? Data.ChannelPointsCustomRewardId : null;
 
-    public bool IsMe => Data.IsMe;
+    public bool IsMe => Data.BroadcasterUserId == Data.ChatterUserId;
     public bool IsBroadcaster => Data.IsBroadcaster;
     public bool IsSubscriber => Data.IsSubscriber;
     public bool IsModerator => Data.IsModerator;
-    public bool IsTurbo => Data.IsTurbo;
+    public bool IsTurbo => Data.Badges.Any(x => x.SetId.Equals("turbo", StringComparison.OrdinalIgnoreCase)); // TODO: check if this is correct
     public bool IsStaff => Data.IsStaff;
-    public bool IsReply => Data.ChatReply != null;
+    public bool IsReply => Data.Reply is not null;
     public bool IsVip => Data.IsVip;
-    public bool IsPartner => Data.IsPartner;
-    public bool IsFirstMessage => Data.IsFirstMessage;
+    public bool IsPartner => Data.Badges.Any(x => x.SetId.Equals("partner", StringComparison.OrdinalIgnoreCase)); // TODO: check if this is correct
+    public bool IsFirstMessage => false; // TODO
 
-    private ChatReply? RepliedTo => Data.ChatReply;
-
-    private string? _userType;
-    public string? UserType => _userType ??= Data.UserType.ToString();
-
-    private DateTimeOffset? _sent;
-
-    public DateTimeOffset Sent
-        => _sent ??= DateTimeOffset.FromUnixTimeMilliseconds(long.Parse(Data.TmiSentTs));
+    private ChatReply? RepliedTo => Data.Reply;
 }

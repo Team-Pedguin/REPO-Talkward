@@ -8,6 +8,18 @@ using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Enums;
 using TwitchLib.Communication.Models;
+using TwitchLib.EventSub.Websockets;
+using TwitchLib.EventSub.Websockets.Core.EventArgs;
+using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging.Abstractions;
+using TwitchLib.EventSub.Core;
+using System.Reflection;
+using System.Linq;
+using TwitchLib.EventSub.Websockets.Client;
+using TwitchLib.EventSub.Websockets.Core.Models;
+using TwitchLib.EventSub.Websockets.Core.Handler;
+using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace Talkward;
 
@@ -43,6 +55,8 @@ public abstract class TwitchIntegration
     private readonly Thread _chatThread;
 
     private AtomicBoolean _authorized;
+
+    private EventSubWebsocketClient? _eventSubClient;
 
     public string TwitchAuthPromptCode => _twitchAuthPromptCode ?? "";
     public string TwitchRefreshToken => _twitchRefreshToken ?? "";
@@ -245,6 +259,12 @@ public abstract class TwitchIntegration
         _lifetime.Cancel();
         _syncThread.Interrupt();
         _chatThread.Interrupt();
+
+        // Disconnect EventSub client if it exists
+        if (_eventSubClient != null)
+        {
+            _eventSubClient.DisconnectAsync().GetAwaiter().GetResult();
+        }
     }
 
     private static void RefreshWorker(object? o)
@@ -339,52 +359,128 @@ public abstract class TwitchIntegration
             ??= GetCurrentTwitchUserLogin().GetAwaiter().GetResult();
 
         if (chatter is null) return;
-        var clientOptions = new ClientOptions();
-        var ws = new WebSocketClient(clientOptions);
-        var client = new TwitchClient(ws);
 
-        client.Initialize(new ConnectionCredentials(chatter,
-            _api.Settings.AccessToken,
-            capabilities: new Capabilities()));
-        
-        client.OnUserJoined += (_, e) =>
-            Task.FromResult(_names.TryAdd(e.Username, (null, DateTime.Now)));
+        // Create a logger factory that logs to our BepInEx logger
+        var loggerFactory = new LoggerFactory();
+        loggerFactory.AddProvider(new PluginLoggerProvider());
 
-        client.OnExistingUsersDetected += (_, e) =>
+        // Set up necessary handlers for EventSub
+        var handlers = new List<INotificationHandler>();
+
+        // Get all handler types and instantiate them
+        var handlerTypes = Assembly.GetAssembly(typeof(EventSubWebsocketClient))
+            ?.GetTypes()
+            .Where(t => typeof(INotificationHandler).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+
+        if (handlerTypes != null)
         {
-            foreach (var user in e.Users)
-                _names.TryAdd(user, (null, DateTime.Now));
-            return Task.CompletedTask;
-        };
+            foreach (var handlerType in handlerTypes)
+            {
+                try
+                {
+                    var handler = Activator.CreateInstance(handlerType);
+                    if (handler != null)
+                    {
+                        handlers.Add((INotificationHandler) handler);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Failed to create handler {handlerType.Name}: {ex.Message}");
+                }
+            }
+        }
 
-        client.OnUserLeft += (_, e)
-            => Task.FromResult(_names.TryRemove(e.Username, out var _));
-
-        client.OnMessageReceived += (_, e) =>
+        // Create the EventSub client
+        try
         {
-            var msg = e.ChatMessage;
-            _names[msg.Username] = (msg.DisplayName, DateTime.Now);
+            var websocketClient = new WebsocketClient(loggerFactory.CreateLogger<WebsocketClient>());
+            _eventSubClient = new EventSubWebsocketClient(
+                loggerFactory.CreateLogger<EventSubWebsocketClient>(),
+                handlers,
+                null,
+                websocketClient);
 
-            var args = new TwitchChatEventArgs(msg);
-            OnTwitchChatEvent?.Invoke(this, args);
-            return Task.CompletedTask;
-        };
+            _chatThreadStarted.Set(true);
 
-        client.OnJoinedChannel += (_, e)
-            => Task.FromResult(chatter = e.BotUsername);
+            // Subscribe to events we're interested in
+            _eventSubClient.ChannelChatMessage += OnChannelChatMessage;
+            _eventSubClient.WebsocketConnected += OnWebsocketConnected;
+            _eventSubClient.WebsocketDisconnected += OnWebsocketDisconnected;
+            _eventSubClient.ErrorOccurred += OnErrorOccurred;
 
-        client.OnLeftChannel += (_, e) =>
+            // Connect to the EventSub websocket
+            var connected = _eventSubClient.ConnectAsync().GetAwaiter().GetResult();
+
+            if (connected)
+            {
+                Logger.LogInfo("Successfully connected to Twitch EventSub Websocket");
+            }
+            else
+            {
+                Logger.LogError("Failed to connect to Twitch EventSub Websocket");
+                _chatThreadStarted.Set(false);
+                return;
+            }
+
+            // Keep the thread alive
+            while (!_lifetime.IsCancellationRequested)
+            {
+                Thread.Sleep(5000);
+            }
+        }
+        catch (Exception ex)
         {
-            if (e.BotUsername == chatter) client.Disconnect();
-            return Task.CompletedTask;
-        };
+            Logger.LogError($"Error in Twitch EventSub: {ex.Message}");
+            _chatThreadStarted.Set(false);
+        }
+    }
 
-        client.Connect();
-#if DEBUG
-        var un = client.TwitchUsername;
-        var x = client.ConnectionCredentials;
-#endif
-        client.JoinChannel(_broadcaster ?? chatter);
+    private Task OnChannelChatMessage(object sender, ChannelChatMessageArgs e)
+    {
+        try
+        {
+            EventSubNotification<ChannelChatMessage> notification = e.Notification;
+            EventSubNotificationPayload<ChannelChatMessage> payload = notification.Payload;
+            ChannelChatMessage chatMsg = payload.Event;
+
+            // Store user display name
+            _names[chatMsg.ChatterUserLogin] = (chatMsg.ChatterUserName, DateTime.Now);
+
+            // Create a TwitchChatEventArgs and raise the event
+            var chatEventArgs = new TwitchChatEventArgs(chatMsg);
+
+            OnTwitchChatEvent?.Invoke(this, chatEventArgs);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error processing chat message: {ex.Message}");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnWebsocketConnected(object sender, WebsocketConnectedArgs e)
+    {
+        Logger.LogInfo($"Connected to Twitch EventSub websocket. Session ID: {_eventSubClient?.SessionId}");
+        return Task.CompletedTask;
+    }
+
+    private Task OnWebsocketDisconnected(object sender, EventArgs e)
+    {
+        Logger.LogWarning("Disconnected from Twitch EventSub websocket. Attempting to reconnect...");
+        ThreadPool.QueueUserWorkItem(_ =>
+        {
+            Thread.Sleep(5000); // Wait before reconnecting
+            _eventSubClient?.ConnectAsync();
+        });
+        return Task.CompletedTask;
+    }
+
+    private Task OnErrorOccurred(object sender, ErrorOccuredArgs e)
+    {
+        Logger.LogError($"Twitch EventSub error: {e.Exception.Message}");
+        return Task.CompletedTask;
     }
 
     private void HandleTwitchSync()

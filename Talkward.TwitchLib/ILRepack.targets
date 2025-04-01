@@ -60,6 +60,7 @@
                 OutputFile="$(OutputPath)$(AssemblyName).Merged.dll"
                 LibraryPath="@(IlRepackReferenceDir)"
                 CopyAttributes="false"
+                Union="true"
         />
         
         <Move SourceFiles="$(OutputPath)$(AssemblyName).Merged.dll"

@@ -1,48 +1,8 @@
 ﻿using System.Collections.Concurrent;
+using System.Reflection;
 using BepInEx.Logging;
-using UnityEngine;
-using UnityEngine.LowLevel;
 
 namespace Talkward;
-
-public interface ITimeProvider
-{
-    double UnscaledTime { get; }
-}
-
-public sealed class UnityTimeProvider : ITimeProvider
-{
-    public double UnscaledTime
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => Time.unscaledTimeAsDouble;
-    }
-}
-
-public interface IPlayerLoopRegistrar
-{
-    void RegisterUpdateFunction(Type type, Action updateDelegate);
-}
-
-public sealed class UnityPlayerLoopRegistrar : IPlayerLoopRegistrar
-{
-    public void RegisterUpdateFunction(Type type, Action updateDelegate)
-    {
-        var pl = PlayerLoop.GetCurrentPlayerLoop();
-        pl.subSystemList = pl.subSystemList.Append(new PlayerLoopSystem
-        {
-            type = type,
-            // wonder if this will work lol
-            updateDelegate = Unsafe.As<Action, PlayerLoopSystem.UpdateFunction>(ref updateDelegate)
-        }).ToArray();
-        PlayerLoop.SetPlayerLoop(pl);
-    }
-}
-
-internal static class UnitTestSignal
-{
-    internal static bool Active { get; set; } = false;
-}
 
 [PublicAPI]
 public static class UnityThreadHelper
@@ -50,15 +10,9 @@ public static class UnityThreadHelper
     static UnityThreadHelper()
     {
         if (UnitTestSignal.Active) return;
-        InitializeForUnity();
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void InitializeForUnity()
-    {
-        _loopRegistrar = new UnityPlayerLoopRegistrar();
-        _logger = Plugin.Logger;
-        _timeProvider = new UnityTimeProvider();
+        Type.GetType(nameof(UnityThreadHelperInitializer))!
+            .GetMethod(nameof(UnityThreadHelperInitializer.InitializeForUnity), BindingFlags.NonPublic|BindingFlags.Static)!
+            .Invoke(null, null);
     }
 
     internal static ITimeProvider _timeProvider;

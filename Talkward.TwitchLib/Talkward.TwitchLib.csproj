@@ -23,20 +23,39 @@
         <PackageTags>Twitch,TwitchLib</PackageTags>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
-    
+
+    <PropertyGroup>
+        <PublicizeAll>false</PublicizeAll>
+        <PublicizerRuntimeStrategies>IgnoresAccessChecksTo</PublicizerRuntimeStrategies>
+    </PropertyGroup>
+    <ItemGroup>
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Extensions.LogExtensions" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Extensions.ServiceCollectionExtensions" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.EventSubWebsocketClient" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Core.EventArgs.DataReceivedArgs" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Core.EventArgs.ErrorOccuredArgs" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Core.EventArgs.ErrorOccuredArgs.Exception" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Core.EventArgs.ErrorOccuredArgs.Message" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Client.WebsocketClient.OnDataReceived" />
+        <Publicize Include="TwitchLib.EventSub.Websockets:TwitchLib.EventSub.Websockets.Client.WebsocketClient.OnErrorOccurred" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.40">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Finder.MsBuild.Task" Version="1.2.1" PrivateAssets="all"/>
+        <PackageReference Include="Krafs.Publicizer" Version="2.3.0">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Finder.MsBuild.Task" Version="1.3.4" PrivateAssets="all"/>
         <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-e47ba7f" PrivateAssets="all" />
         <PackageReference Include="TwitchLib.Client" Version="4.0.0-preview-fd131763416cb9f1a31705ca609566d7e7e7fac8" PrivateAssets="all" />
-        <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0-preview-dbc970c" PrivateAssets="all" />
         <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-f833b1ab1ebef37618dba3fbb1e0a661ff183af5" PrivateAssets="all" />
+        <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0-preview-dbc970c" PrivateAssets="all" Aliases="tlws" />
     </ItemGroup>
-    
+
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="" />
     </ItemGroup>
@@ -62,5 +81,22 @@
             <_NupkgFilesToDelete Include="$(SolutionDir)nuget\Talkward.TwitchLib*.nupkg" />
         </ItemGroup>
         <Delete Files="@(_NupkgFilesToDelete)" />
+    </Target>
+
+    <Target Name="ReviewAssemblyRefs" AfterTargets="ILRepacker">
+        <ItemGroup>
+            <ReferenceAssemblyName Include="System.Text.Json"/>
+        </ItemGroup>
+        <IdentifyCauseOfAssemblyReference
+                MessageImportance="high"
+                Verbose="true"
+                SourceAssemblyPaths="$(OutputPath)$(AssemblyName).dll"
+                ReferenceAssemblyNames="@(ReferenceAssemblyName)">
+            <Output TaskParameter="Causes" ItemName="AssemblyReferenceCause"/>
+        </IdentifyCauseOfAssemblyReference>
+        <Message Text="AssemblyReferenceCauses: %(AssemblyReferenceCause.Description)" Importance="high"/>
+        <ItemGroup>
+            <ReferenceAssemblyName Remove="@(ReferenceAssemblyName)"/>
+        </ItemGroup>
     </Target>
 </Project>

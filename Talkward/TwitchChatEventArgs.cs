@@ -30,7 +30,7 @@ public class TwitchChatEventArgs : EventArgs
 
     public bool IsHighlighted => false; // TODO
     public bool IsSkippingSubMode => false; // TODO
-    public bool IsCustomReward => string.IsNullOrWhiteSpace(Data.ChannelPointsCustomRewardId);
+    public bool IsCustomReward => !string.IsNullOrWhiteSpace(Data.ChannelPointsCustomRewardId);
     public string? CustomReward => IsCustomReward ? Data.ChannelPointsCustomRewardId : null;
 
     public bool IsMe => Data.BroadcasterUserId == Data.ChatterUserId;

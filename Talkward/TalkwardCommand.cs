@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using System.Reflection;
 using BepInEx.Logging;
 using REPOLib.Commands;
 using Unity.VisualScripting;
@@ -7,39 +6,8 @@ using Unity.VisualScripting;
 namespace Talkward;
 
 [PublicAPI]
-public static class TalkwardCommand
+public static partial class TalkwardCommand
 {
-    private static class CommandManagerReflection
-    {
-        private static readonly Type CommandManagerType = typeof(Console).Assembly.GetType("REPOLib.Commands.CommandManager");
-        private static readonly PropertyInfo CommandsEnabledProperty = CommandManagerType.GetProperty("CommandsEnabled", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-        private static readonly PropertyInfo CommandExecutionMethodsProperty = CommandManagerType.GetProperty("CommandExecutionMethods", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-
-        public static Dictionary<string, bool>? GetCommandsEnabled()
-        {
-            return CommandsEnabledProperty.GetValue(null) as Dictionary<string, bool>;
-        }
-
-        public static Dictionary<string, MethodInfo>? GetCommandExecutionMethods()
-        {
-            return CommandExecutionMethodsProperty.GetValue(null) as Dictionary<string, MethodInfo>;
-        }
-
-        public static bool TryGetCommandEnabled(string cmd, out bool enabled)
-        {
-            enabled = false;
-            var commandsEnabled = GetCommandsEnabled();
-            return commandsEnabled?.TryGetValue(cmd, out enabled) ?? false;
-        }
-
-        public static bool TryGetCommandExecutionMethod(string cmd, [MaybeNullWhen(false)] out MethodInfo mi)
-        {
-            mi = null;
-            var executionMethods = GetCommandExecutionMethods();
-            return executionMethods?.TryGetValue(cmd, out mi) ?? false;
-        }
-    }
-
     [CommandInitializer]
     public static void Initialize()
     {
@@ -53,20 +21,18 @@ public static class TalkwardCommand
 
             var cmd = firstArg.ToString();
 
-            if (!CommandManagerReflection.TryGetCommandEnabled(cmd, out var enabled))
+            var found = CommandManager.CommandExecutionMethods.TryGetValue(cmd, out var mi);
+            if (!found)
             {
                 Plugin.Logger?.LogWarning($"{cmd} was not found.");
                 return false;
             }
             
-            if (enabled)
+            if (CommandManager.CommandsEnabled.TryGetValue(cmd, out var enabled) && !enabled)
             {
                 Plugin.Logger?.LogWarning($"{cmd} is disabled.");
                 return false;
             }
-
-            if (!CommandManagerReflection.TryGetCommandExecutionMethod(cmd, out var mi))
-                return false;
 
             var argStrAfterCmd = argStr.Slice(indexOfFirstSpace + 1).ToString();
             

@@ -3,23 +3,16 @@ using System.Net.Http;
 using BepInEx.Logging;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
-using TwitchLib.Client;
-using TwitchLib.Client.Models;
-using TwitchLib.Communication.Clients;
-using TwitchLib.Communication.Enums;
-using TwitchLib.Communication.Models;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
 using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
-using System.Collections.Generic;
-using Microsoft.Extensions.Logging.Abstractions;
-using TwitchLib.EventSub.Core;
-using System.Reflection;
-using System.Linq;
-using TwitchLib.EventSub.Websockets.Client;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using TwitchLib.Api.Helix.Models.EventSub;
 using TwitchLib.EventSub.Websockets.Core.Models;
-using TwitchLib.EventSub.Websockets.Core.Handler;
 using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
+using TwitchLib.EventSub.Websockets.Extensions;
+using TwitchUserInfo = TwitchLib.Api.Helix.Models.Users.GetUsers.User;
 
 namespace Talkward;
 
@@ -44,8 +37,6 @@ public abstract class TwitchIntegration
 
     private string? _twitchRefreshToken;
 
-    private string? _currentTwitchUserLogin;
-
     private AtomicBoolean _syncThreadStarted = default;
 
     private readonly Thread _syncThread;
@@ -60,7 +51,13 @@ public abstract class TwitchIntegration
 
     public string TwitchAuthPromptCode => _twitchAuthPromptCode ?? "";
     public string TwitchRefreshToken => _twitchRefreshToken ?? "";
-    public string CurrentTwitchUserId => _currentTwitchUserLogin ?? "";
+
+    public string? CurrentTwitchUserId
+        => (_currentTwitchUserInfo ?? UpdateCurrentTwitchUserInfo().GetAwaiter().GetResult())?.Id;
+
+    public string? CurrentTwitchUserLogin
+        => (_currentTwitchUserInfo ?? UpdateCurrentTwitchUserInfo().GetAwaiter().GetResult())?.Login;
+
     public bool SyncThreadStarted => _syncThreadStarted;
     public bool ChatThreadStarted => _chatThreadStarted;
 
@@ -72,16 +69,32 @@ public abstract class TwitchIntegration
 
     private readonly string _twitchApiScopes = string.Join(' ',
         "channel:read:subscriptions",
+        "channel:read:vips",
+        "channel:read:hype_train",
+        "channel:read:charity",
+        "channel:read:goals",
+        "channel:read:redemptions",
         "moderator:read:followers",
         "moderator:read:guest_star",
         "moderator:read:shoutouts",
+        "moderator:read:chatters",
         "user:bot", "channel:bot",
         "user:read:chat",
-        "user:write:chat",
-        "moderator:read:chatters"
+        "user:write:chat"
     );
 
-    private string? _broadcaster;
+    private string? _broadcasterId;
+
+    private readonly IServiceProvider _serviceProvider
+        = new ServiceCollection()
+            .AddLogging(builder
+                => builder
+                    .ClearProviders()
+                    .AddProvider(new PluginLoggerProvider()))
+            .AddTwitchLibEventSubWebsockets()
+            .BuildServiceProvider();
+
+    private TwitchUserInfo? _currentTwitchUserInfo;
 
     public TwitchIntegration(TwitchConfig cfg)
     {
@@ -102,6 +115,8 @@ public abstract class TwitchIntegration
             })
             .Where(a => a != InvalidAuthScope)
             .ToList();
+
+        Logger.LogInfo($"Twitch API scopes: {string.Join(", ", settings.Scopes)}");
 
         async Task TwitchDeviceCodeFlowAuth()
         {
@@ -322,9 +337,13 @@ public abstract class TwitchIntegration
         RefreshToken(this).GetAwaiter().GetResult();
     }
 
-    private async Task<string?> GetCurrentTwitchUserLogin()
-        => (await _api.Helix.Users.GetUsersAsync())
-            .Users.FirstOrDefault()?.Login;
+    private async Task<TwitchUserInfo?> UpdateCurrentTwitchUserInfo()
+    {
+        var userInfo = (await _api.Helix.Users.GetUsersAsync())
+            .Users.FirstOrDefault();
+        if (userInfo is not null) _currentTwitchUserInfo = userInfo;
+        return userInfo;
+    }
 
     private static void TwitchChatWorker(object? o)
         => ((TwitchIntegration) o!).HandleTwitchChat();
@@ -354,85 +373,38 @@ public abstract class TwitchIntegration
     {
         WaitForTwitchAuth(1000);
 
-        var cfg = _config;
-        var chatter = _currentTwitchUserLogin
-            ??= GetCurrentTwitchUserLogin().GetAwaiter().GetResult();
 
-        if (chatter is null) return;
+        _eventSubClient = _serviceProvider.GetRequiredService<EventSubWebsocketClient>();
 
-        // Create a logger factory that logs to our BepInEx logger
-        var loggerFactory = new LoggerFactory();
-        loggerFactory.AddProvider(new PluginLoggerProvider());
+        _chatThreadStarted.Set(true);
 
-        // Set up necessary handlers for EventSub
-        var handlers = new List<INotificationHandler>();
+        // Subscribe to events we're interested in
+        _eventSubClient.ChannelChatMessage += OnChannelChatMessage;
+        _eventSubClient.WebsocketConnected += OnWebsocketConnected;
+        _eventSubClient.WebsocketDisconnected += OnWebsocketDisconnected;
+        _eventSubClient.ErrorOccurred += OnErrorOccurred;
 
-        // Get all handler types and instantiate them
-        var handlerTypes = Assembly.GetAssembly(typeof(EventSubWebsocketClient))
-            ?.GetTypes()
-            .Where(t => typeof(INotificationHandler).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
 
-        if (handlerTypes != null)
+        // try to make sure we have a chatter ID before trying to connect
+        var chatterId = CurrentTwitchUserId;
+        while (string.IsNullOrWhiteSpace(chatterId))
         {
-            foreach (var handlerType in handlerTypes)
-            {
-                try
-                {
-                    var handler = Activator.CreateInstance(handlerType);
-                    if (handler != null)
-                    {
-                        handlers.Add((INotificationHandler) handler);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"Failed to create handler {handlerType.Name}: {ex.Message}");
-                }
-            }
+            Thread.Sleep(1000);
+            chatterId = CurrentTwitchUserId;
         }
 
-        // Create the EventSub client
-        try
+        do
         {
-            var websocketClient = new WebsocketClient(loggerFactory.CreateLogger<WebsocketClient>());
-            _eventSubClient = new EventSubWebsocketClient(
-                loggerFactory.CreateLogger<EventSubWebsocketClient>(),
-                handlers,
-                null,
-                websocketClient);
+            if (_eventSubClient.ConnectAsync().GetAwaiter().GetResult())
+                break;
+            Logger.LogError("Failed to connect to Twitch EventSub websocket");
+            Thread.Sleep(5000);
+        } while (!_lifetime.IsCancellationRequested);
 
-            _chatThreadStarted.Set(true);
-
-            // Subscribe to events we're interested in
-            _eventSubClient.ChannelChatMessage += OnChannelChatMessage;
-            _eventSubClient.WebsocketConnected += OnWebsocketConnected;
-            _eventSubClient.WebsocketDisconnected += OnWebsocketDisconnected;
-            _eventSubClient.ErrorOccurred += OnErrorOccurred;
-
-            // Connect to the EventSub websocket
-            var connected = _eventSubClient.ConnectAsync().GetAwaiter().GetResult();
-
-            if (connected)
-            {
-                Logger.LogInfo("Successfully connected to Twitch EventSub Websocket");
-            }
-            else
-            {
-                Logger.LogError("Failed to connect to Twitch EventSub Websocket");
-                _chatThreadStarted.Set(false);
-                return;
-            }
-
-            // Keep the thread alive
-            while (!_lifetime.IsCancellationRequested)
-            {
-                Thread.Sleep(5000);
-            }
-        }
-        catch (Exception ex)
+        // Keep the thread alive
+        while (!_lifetime.IsCancellationRequested)
         {
-            Logger.LogError($"Error in Twitch EventSub: {ex.Message}");
-            _chatThreadStarted.Set(false);
+            Thread.Sleep(5000);
         }
     }
 
@@ -449,6 +421,7 @@ public abstract class TwitchIntegration
 
             // Create a TwitchChatEventArgs and raise the event
             var chatEventArgs = new TwitchChatEventArgs(chatMsg);
+            Logger.LogMessage($"|Tw> {chatMsg.ChatterUserName}: {chatMsg.Message.Text}");
 
             OnTwitchChatEvent?.Invoke(this, chatEventArgs);
         }
@@ -460,10 +433,83 @@ public abstract class TwitchIntegration
         return Task.CompletedTask;
     }
 
-    private Task OnWebsocketConnected(object sender, WebsocketConnectedArgs e)
+    private async Task OnWebsocketConnected(object sender, WebsocketConnectedArgs e)
     {
         Logger.LogInfo($"Connected to Twitch EventSub websocket. Session ID: {_eventSubClient?.SessionId}");
-        return Task.CompletedTask;
+        if (e.IsRequestedReconnect)
+            Logger.LogWarning("Twitch EventSub IsRequestedReconnect");
+
+        var chatterId = CurrentTwitchUserId;
+
+        while (string.IsNullOrWhiteSpace(chatterId))
+        {
+            Thread.Sleep(10);
+            chatterId = CurrentTwitchUserId;
+        }
+
+        var subResponses = await Task.WhenAll(
+            _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.chat.message", "1",
+                new Dictionary<string, string>
+                    {["broadcaster_user_id"] = _broadcasterId ?? chatterId, ["user_id"] = chatterId},
+                EventSubTransportMethod.Websocket,
+                websocketSessionId: _eventSubClient!.SessionId,
+                clientId: _api.Settings.ClientId,
+                accessToken: _api.Settings.AccessToken),
+            _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.chat.message", "1",
+                new Dictionary<string, string>
+                    {["broadcaster_user_id"] = _broadcasterId ?? chatterId, ["user_id"] = chatterId},
+                EventSubTransportMethod.Websocket,
+                websocketSessionId: _eventSubClient.SessionId,
+                clientId: _api.Settings.ClientId,
+                accessToken: _api.Settings.AccessToken),
+            _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.cheer", "1",
+                new Dictionary<string, string> {["broadcaster_user_id"] = _broadcasterId ?? chatterId},
+                EventSubTransportMethod.Websocket,
+                websocketSessionId: _eventSubClient.SessionId,
+                clientId: _api.Settings.ClientId,
+                accessToken: _api.Settings.AccessToken),
+            _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.channel_points_automatic_reward_redemption.add", "2",
+                new Dictionary<string, string> {["broadcaster_user_id"] = _broadcasterId ?? chatterId},
+                EventSubTransportMethod.Websocket,
+                websocketSessionId: _eventSubClient.SessionId,
+                clientId: _api.Settings.ClientId,
+                accessToken: _api.Settings.AccessToken),
+            _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.channel_points_custom_reward_redemption.add", "1",
+                new Dictionary<string, string> {["broadcaster_user_id"] = _broadcasterId ?? chatterId},
+                EventSubTransportMethod.Websocket,
+                websocketSessionId: _eventSubClient.SessionId,
+                clientId: _api.Settings.ClientId,
+                accessToken: _api.Settings.AccessToken),
+            _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                "channel.channel_points_custom_reward_redemption.update", "1",
+                new Dictionary<string, string> {["broadcaster_user_id"] = _broadcasterId ?? chatterId},
+                EventSubTransportMethod.Websocket,
+                websocketSessionId: _eventSubClient.SessionId,
+                clientId: _api.Settings.ClientId,
+                accessToken: _api.Settings.AccessToken)
+        );
+
+        var subsResponseCheck = await _api.Helix.EventSub.GetEventSubSubscriptionsAsync();
+
+        var subs = subResponses
+            .SelectMany(x => x.Subscriptions)
+            .ToDictionary(x => $"{x.Type}:v{x.Version}");
+
+        var subsCheck = subsResponseCheck.Subscriptions
+            .ToDictionary(x => $"{x.Type}:v{x.Version}");
+
+        foreach (var key in subs.Keys.Concat(subsCheck.Keys).Distinct())
+        {
+            if (!subs.ContainsKey(key))
+                Logger.LogError($"No initial EventSub response for {key}");
+            if (!subsCheck.ContainsKey(key))
+                Logger.LogError($"EventSub {key} missing from check");
+        }
     }
 
     private Task OnWebsocketDisconnected(object sender, EventArgs e)
@@ -488,30 +534,37 @@ public abstract class TwitchIntegration
         WaitForTwitchAuth(1000);
 
         var cfg = _config;
-        _broadcaster = cfg.BroadcasterId;
-        if (string.IsNullOrWhiteSpace(_broadcaster))
-            _broadcaster = _currentTwitchUserLogin
-                ??= GetCurrentTwitchUserLogin().GetAwaiter().GetResult();
-        if (string.IsNullOrWhiteSpace(_broadcaster))
+        _broadcasterId = cfg.BroadcasterId;
+        if (string.IsNullOrWhiteSpace(_broadcasterId))
+        {
+            _broadcasterId = CurrentTwitchUserId;
+            while (string.IsNullOrWhiteSpace(_broadcasterId))
+            {
+                Thread.Sleep(1000);
+                _broadcasterId = CurrentTwitchUserId;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(_broadcasterId))
             return;
 
-        var moderator = cfg.ModeratorId;
-        if (string.IsNullOrWhiteSpace(moderator))
-            moderator = _broadcaster;
+        var moderatorId = cfg.ModeratorId;
+        if (string.IsNullOrWhiteSpace(moderatorId))
+            moderatorId = _broadcasterId;
 
         do
         {
             async Task AsyncWork()
             {
-                var broadcaster = _broadcaster;
-                while (string.IsNullOrWhiteSpace(broadcaster))
+                var broadcasterId = _broadcasterId;
+                while (string.IsNullOrWhiteSpace(broadcasterId))
                 {
                     await Task.Delay(100);
-                    broadcaster = _broadcaster;
+                    broadcasterId = _broadcasterId;
                 }
 
                 var (total, cursor, userLogins)
-                    = await GetUserLogins(broadcaster, moderator);
+                    = await GetUserLogins(broadcasterId, moderatorId);
                 var pageCount = 1;
 
                 void SyncWork()
@@ -558,7 +611,7 @@ public abstract class TwitchIntegration
                         break;
 
                     (total, cursor, userLogins)
-                        = await GetUserLogins(broadcaster, moderator, after: cursor);
+                        = await GetUserLogins(broadcasterId, moderatorId, after: cursor);
                     pageCount++;
                 }
 

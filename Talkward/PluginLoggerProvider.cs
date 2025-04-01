@@ -2,12 +2,12 @@
 
 namespace Talkward;
 
+
+[ProviderAlias("PluginLogger")]
 public class PluginLoggerProvider : ILoggerProvider
 {
     public ILogger CreateLogger(string categoryName)
-    {
-        return new PluginLogger(categoryName);
-    }
+        => new PluginLogger(categoryName);
 
     public void Dispose()
     {

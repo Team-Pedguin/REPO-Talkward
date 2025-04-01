@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Active Project Sources" pattern="(file:Finder.MsBuild.Task//*||file:Finder.MsBuild.Task.Tests//*||file:Talkward//*||file:Talkward.Polyfills//*||file:Talkward.Sam//*||file:Talkward.Test//*||file:Talkward.TwitchLib//*||file:TwitchLib.EventSub.Websockets/TwitchLib.EventSub.Websockets//*||file:Directory.Build.props||file:LICENSE.txt||file:README.md||file:manifest.json||file:nuget.config||file:*//LICENSE.txt||file:*//README.md||file:Talkward.sln)&amp;&amp;!file:.*//*&amp;&amp;!file:*//.*&amp;&amp;!file:*//bin//*&amp;&amp;!file:*//obj//*" />
+</component>

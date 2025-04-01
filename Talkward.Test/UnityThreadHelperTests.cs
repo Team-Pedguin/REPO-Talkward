@@ -106,13 +106,13 @@ public partial class UnityThreadHelperTests
         var callbackExecuted = false;
         var scheduledTime = 15.0;
 
-        void Callback(object? state)
+        void Callback(Empty _)
         {
             callbackExecuted = true;
         }
 
         // Act
-        UnityThreadHelper.Schedule(scheduledTime, Callback, null);
+        UnityThreadHelper.Schedule(scheduledTime, Callback);
         
         // Process with current time - shouldn't execute yet
         _mockLoopRegistrar.InvokeForType(typeof(UnityThreadHelper));
@@ -135,13 +135,13 @@ public partial class UnityThreadHelperTests
         var callbackExecuted = false;
         var pastTime = 15.0; // Time in the past
 
-        void Callback(object? state)
+        void Callback(Empty _)
         {
             callbackExecuted = true;
         }
 
         // Act
-        UnityThreadHelper.Schedule(pastTime, Callback, null);
+        UnityThreadHelper.Schedule(pastTime, Callback);
         _mockLoopRegistrar.InvokeForType(typeof(UnityThreadHelper));
 
         // Assert
@@ -158,14 +158,14 @@ public partial class UnityThreadHelperTests
         var callback2Executed = false;
         var callback3Executed = false;
         
-        void Callback1(object? state) => callback1Executed = true;
-        void Callback2(object? state) => callback2Executed = true;
-        void Callback3(object? state) => callback3Executed = true;
+        void Callback1(Empty _) => callback1Executed = true;
+        void Callback2(Empty _) => callback2Executed = true;
+        void Callback3(Empty _) => callback3Executed = true;
         
         // Schedule at different times
-        UnityThreadHelper.Schedule(11.0, Callback1, null);
-        UnityThreadHelper.Schedule(12.0, Callback2, null);
-        UnityThreadHelper.Schedule(15.0, Callback3, null);
+        UnityThreadHelper.Schedule(11.0, Callback1);
+        UnityThreadHelper.Schedule(12.0, Callback2);
+        UnityThreadHelper.Schedule(15.0, Callback3);
         
         // Act - Run at time 11.5
         _mockTimeProvider.SetTime(11.5);

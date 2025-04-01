@@ -27,31 +27,45 @@ public static class UnityThreadHelper
 
     private readonly struct CallbackState
     {
-        public readonly SendOrPostCallback Callback;
+        public readonly MulticastDelegate Callback;
         public readonly object? State;
         public readonly ManualResetEventSlim? Completed;
 
-        public CallbackState(SendOrPostCallback callback, object? state, ManualResetEventSlim? completed)
+        public CallbackState(MulticastDelegate callback, object? state, ManualResetEventSlim? completed)
         {
             Callback = callback;
             State = state;
             Completed = completed;
+        }
+
+        public void Invoke()
+        {
+            var target = Callback.Target;
+            var method = Callback.Method;
+            method.Invoke(target, [State]);
         }
     }
 
     private struct ScheduledCallbackState
     {
         public readonly double UnscaledTime;
-        public readonly SendOrPostCallback Callback;
+        public readonly MulticastDelegate Callback;
         public readonly object? State;
         public AtomicBoolean Executed;
 
-        public ScheduledCallbackState(double unscaledTime, SendOrPostCallback callback, object? state)
+        public ScheduledCallbackState(double unscaledTime, MulticastDelegate callback, object? state)
         {
             UnscaledTime = unscaledTime;
             Callback = callback;
             State = state;
             Executed = default;
+        }
+
+        public void Invoke()
+        {
+            var target = Callback.Target;
+            var method = Callback.Method;
+            method.Invoke(target, [State]);
         }
     }
 
@@ -66,11 +80,20 @@ public static class UnityThreadHelper
 
     internal static AtomicBoolean Initialized;
 
+    internal static Thread? MainThread;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool IsMainThread()
+        => MainThread is not null
+           && MainThread == Thread.CurrentThread;
+
     internal static void Initialize()
     {
         if (!Initialized.TrySet()) return;
 
         _loopRegistrar.RegisterUpdateFunction(typeof(UnityThreadHelper), Run);
+
+        MainThread = Thread.CurrentThread;
     }
 
     internal static long _nextSecondToRun;
@@ -81,12 +104,12 @@ public static class UnityThreadHelper
         {
             try
             {
-                queued.Callback(queued.State);
+                queued.Invoke();
             }
             catch (Exception ex)
             {
                 _logger?.LogError(
-                    $"UnityThreadHelper Queued: {ex.GetType().FullName} in {queued.Callback.Method.DeclaringType?.FullName}.{queued.Callback.Method.Name}\n{ex}");
+                    $"UnityThreadHelper {ex.GetType().FullName} in queued callbacks\n{ex}");
             }
             finally
             {
@@ -96,7 +119,7 @@ public static class UnityThreadHelper
 
         var time = _timeProvider.UnscaledTime;
         var thisSecond = (long) time;
-        
+
         // Process due callbacks
         var nextSecondToRun = _nextSecondToRun;
         var nextDueSecond = long.MaxValue;
@@ -142,12 +165,12 @@ public static class UnityThreadHelper
 
                     try
                     {
-                        scheduled.Callback(scheduled.State);
+                        scheduled.Invoke();
                     }
                     catch (Exception ex)
                     {
                         _logger?.LogError(
-                            $"UnityThreadHelper Scheduler: {ex.GetType().FullName} in {scheduled.Callback.Method.DeclaringType?.FullName}.{scheduled.Callback.Method.Name}\n{ex}");
+                            $"UnityThreadHelper {ex.GetType().FullName} in scheduled callbacks\n{ex}");
                     }
                     finally
                     {
@@ -173,6 +196,7 @@ public static class UnityThreadHelper
             _nextSecondToRun = thisSecond;
             return;
         }
+
         if (nextDueSecond != long.MaxValue)
         {
             _nextSecondToRun = nextDueSecond;
@@ -180,19 +204,32 @@ public static class UnityThreadHelper
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Post(SendOrPostCallback callback, object? state)
+    public static void Post<T>(Action<T> callback, T state)
         => _callbackQueue.Enqueue(new CallbackState(callback, state, null));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Send(SendOrPostCallback callback, object? state)
+    public static void Post(Action<Empty> callback)
+        => Post(callback, null!);
+
+
+    public static void Send<T>(Action<T> callback, T state)
     {
+        if (IsMainThread())
+        {
+            callback(state);
+            return;
+        }
+
         using var completed = new ManualResetEventSlim(false);
         _callbackQueue.Enqueue(new CallbackState(callback, state, completed));
         completed.Wait();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Schedule(double unscaledTime, SendOrPostCallback callback, object? state)
+    public static void Send(Action<Empty> callback)
+        => Send(callback, null!);
+
+    public static void Schedule<T>(double unscaledTime, Action<T> callback, T state)
     {
         var time = _timeProvider.UnscaledTime;
         if (time >= unscaledTime)
@@ -201,7 +238,7 @@ public static class UnityThreadHelper
             return;
         }
 
-        var scheduledSecond = (long)unscaledTime;
+        var scheduledSecond = (long) unscaledTime;
 
         // lock on the list members, not on the ConcurrentDictionary ffs
         // ReSharper disable once InconsistentlySynchronizedField
@@ -214,11 +251,14 @@ public static class UnityThreadHelper
             Interlocked.CompareExchange(ref _nextSecondToRun, scheduledSecond, nextSecondToRun);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Schedule(double unscaledTime, Action<Empty> callback)
+        => Schedule(unscaledTime, callback, null!);
+
     internal static void ResetForTesting()
     {
         _callbackQueue = new ConcurrentQueue<CallbackState>();
         _scheduled = new ConcurrentDictionary<long, RefList<ScheduledCallbackState>>();
-        _nextSecondToRun = (long)_timeProvider.UnscaledTime; // Initialize to current time
+        _nextSecondToRun = (long) _timeProvider.UnscaledTime; // Initialize to current time
     }
 }
-

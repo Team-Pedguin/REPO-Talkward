@@ -16,18 +16,18 @@ public partial class UnityThreadHelperTests
         
         var executionOrder = new List<int>();
         
-        void Callback1(object? state) => executionOrder.Add(1);
-        void Callback2(object? state) => executionOrder.Add(2);
-        void Callback3(object? state) => executionOrder.Add(3);
-        void Callback4(object? state) => executionOrder.Add(4);
-        void Callback5(object? state) => executionOrder.Add(5);
+        void Callback1(Empty _) => executionOrder.Add(1);
+        void Callback2(Empty _) => executionOrder.Add(2);
+        void Callback3(Empty _) => executionOrder.Add(3);
+        void Callback4(Empty _) => executionOrder.Add(4);
+        void Callback5(Empty _) => executionOrder.Add(5);
         
         // Schedule callbacks across multiple seconds
-        UnityThreadHelper.Schedule(11.0, Callback1, null);
-        UnityThreadHelper.Schedule(13.0, Callback2, null);
-        UnityThreadHelper.Schedule(15.0, Callback3, null);
-        UnityThreadHelper.Schedule(17.0, Callback4, null);
-        UnityThreadHelper.Schedule(19.0, Callback5, null);
+        UnityThreadHelper.Schedule(11.0, Callback1);
+        UnityThreadHelper.Schedule(13.0, Callback2);
+        UnityThreadHelper.Schedule(15.0, Callback3);
+        UnityThreadHelper.Schedule(17.0, Callback4);
+        UnityThreadHelper.Schedule(19.0, Callback5);
         
         // Act - Jump far ahead in time, missing several seconds
         _mockTimeProvider.SetTime(20.0);
@@ -47,14 +47,14 @@ public partial class UnityThreadHelperTests
         
         var callbacksExecuted = new bool[3];
         
-        void Callback1(object? state) => callbacksExecuted[0] = true;
-        void Callback2(object? state) => callbacksExecuted[1] = true;
-        void Callback3(object? state) => callbacksExecuted[2] = true;
+        void Callback1(Empty _) => callbacksExecuted[0] = true;
+        void Callback2(Empty _) => callbacksExecuted[1] = true;
+        void Callback3(Empty _) => callbacksExecuted[2] = true;
         
         // Schedule in non-sequential order
-        UnityThreadHelper.Schedule(20.0, Callback2, null);
-        UnityThreadHelper.Schedule(15.0, Callback1, null);
-        UnityThreadHelper.Schedule(25.0, Callback3, null);
+        UnityThreadHelper.Schedule(20.0, Callback2);
+        UnityThreadHelper.Schedule(15.0, Callback1);
+        UnityThreadHelper.Schedule(25.0, Callback3);
         
         // Assert initial state
         var initialNextSecond = UnityThreadHelper._nextSecondToRun;
@@ -81,19 +81,19 @@ public partial class UnityThreadHelperTests
         var executed1 = false;
         var executed2 = false;
         
-        void Callback1(object? state) 
+        void Callback1(Empty _) 
         {
             executed1 = true;
         }
         
-        void Callback2(object? state) 
+        void Callback2(Empty _) 
         {
             executed2 = true;
         }
         
         // Add callbacks at seconds 15 and 17
-        UnityThreadHelper.Schedule(15.0, Callback1, null);
-        UnityThreadHelper.Schedule(17.0, Callback2, null);
+        UnityThreadHelper.Schedule(15.0, Callback1);
+        UnityThreadHelper.Schedule(17.0, Callback2);
         
         _mockLoopRegistrar.InvokeForType(typeof(UnityThreadHelper));
         UnityThreadHelper._nextSecondToRun.Should().Be(10, "Next second should be 10 before any callbacks are processed");
@@ -116,15 +116,15 @@ public partial class UnityThreadHelperTests
         
         var executionTimes = new List<double>();
         
-        void RecordTimeCallback(object? state)
+        void RecordTimeCallback(Empty _)
         {
             executionTimes.Add(_mockTimeProvider.UnscaledTime);
         }
         
         // Schedule callbacks at distant times
-        UnityThreadHelper.Schedule(10.0, RecordTimeCallback, null);
-        UnityThreadHelper.Schedule(100.0, RecordTimeCallback, null);
-        UnityThreadHelper.Schedule(1000.0, RecordTimeCallback, null);
+        UnityThreadHelper.Schedule(10.0, RecordTimeCallback);
+        UnityThreadHelper.Schedule(100.0, RecordTimeCallback);
+        UnityThreadHelper.Schedule(1000.0, RecordTimeCallback);
         
         // Act - Make a massive time jump
         _mockTimeProvider.SetTime(1500.0);
@@ -144,14 +144,14 @@ public partial class UnityThreadHelperTests
         
         var executionOrder = new List<int>();
         
-        void Callback1(object? state) => executionOrder.Add(1);
-        void Callback2(object? state) => executionOrder.Add(2);
-        void Callback3(object? state) => executionOrder.Add(3);
+        void Callback1(Empty _) => executionOrder.Add(1);
+        void Callback2(Empty _) => executionOrder.Add(2);
+        void Callback3(Empty _) => executionOrder.Add(3);
         
         // Schedule multiple callbacks at the same second but with different fractional times
-        UnityThreadHelper.Schedule(15.9, Callback3, null);
-        UnityThreadHelper.Schedule(15.5, Callback2, null);
-        UnityThreadHelper.Schedule(15.1, Callback1, null);
+        UnityThreadHelper.Schedule(15.9, Callback3);
+        UnityThreadHelper.Schedule(15.5, Callback2);
+        UnityThreadHelper.Schedule(15.1, Callback1);
         
         // Act
         _mockTimeProvider.SetTime(16.0);

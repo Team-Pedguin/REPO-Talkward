@@ -94,21 +94,23 @@ public class Plugin : BaseUnityPlugin
         {
             typeof(TalkwardCommand).Assembly.GetTypes();
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Logger?.LogError($"Failed to poke types: {ex}");
         }
+
         try
         {
             foreach (var mi in typeof(TalkwardCommand).GetMethods()
-                .Where(method => method.GetCustomAttribute<CommandInitializerAttribute>() != null))
+                         .Where(method => method.GetCustomAttribute<CommandInitializerAttribute>() != null))
                 Logger?.LogInfo($"Type-poking command initializer: {mi.Name}");
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Logger?.LogError($"Failed to poke command types: {ex}");
         }
-        UnityThreadHelper.Post(static _ => Logger?.LogInfo("UnityThreadHelper initialized"), null);
+
+        UnityThreadHelper.Post(static _ => Logger?.LogInfo("UnityThreadHelper initialized"));
         UnityThreadHelper.Initialize();
 
         if (Instance)
@@ -236,31 +238,36 @@ public class Plugin : BaseUnityPlugin
         _twitchConfig = twitchConfig;
 
         Logger?.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
-        
+
         UnityThreadHelper.Schedule(Time.unscaledTimeAsDouble + 10, _ =>
         {
             _twitchInt = new UnityTwitchIntegration(_twitchConfig);
             _twitchInt.OnTwitchChatEvent += HandleTwitchChatEvent;
-        }, null);
+        });
     }
 
     private void HandleTwitchChatEvent(object _, TwitchChatEventArgs args)
     {
         if (!TalkwardEnabled) return;
 
-        var sender = args.DisplayName ?? args.UserName ?? "";
+        var sender = args.IsAnonymous ? "anonymous" : args.DisplayName ?? args.UserName ?? "";
         var message = args.Message ?? "";
         if (_twitchMinBits > 0 && args.Bits >= _twitchMinBits
             || args.IsSubscriber && args.Bits >= _twitchMinBitsForSubs
             || args.IsBroadcaster)
         {
-            var voice = message.StartsWith(_twitchSpeakCommand) && message[_twitchSpeakCommand.Length] == ' '
-                ? 0
-                : message.StartsWith(_twitchWhisperCommand) && message[_twitchWhisperCommand.Length] == ' '
-                    ? 1
-                    : -1;
-            if (voice >= 0)
-                Speak(new MessageContent {Voice = voice, Message = message, Sender = sender});
+            var commandStartedWith
+                = message.StartsWith(_twitchSpeakCommand) && message[_twitchSpeakCommand.Length] == ' '
+                    ? _twitchSpeakCommand
+                    : message.StartsWith(_twitchWhisperCommand) && message[_twitchWhisperCommand.Length] == ' '
+                        ? _twitchWhisperCommand
+                        : null;
+            if (commandStartedWith == null)
+                return;
+
+            var voice = commandStartedWith == _twitchSpeakCommand ? 0 : 1;
+            var msgStart = commandStartedWith.Length + 1;
+            Speak(new MessageContent {Voice = voice, Message = message[msgStart..], Sender = sender});
             return;
         }
 
@@ -290,7 +297,6 @@ public class Plugin : BaseUnityPlugin
                 return;
             }
         }
-
     }
 
 
@@ -334,6 +340,12 @@ public class Plugin : BaseUnityPlugin
 
     public void Speak(MessageContent msg)
     {
+        if (!UnityThreadHelper.IsMainThread())
+        {
+            UnityThreadHelper.Post(static msg => Instance.Speak(msg), msg);
+            return;
+        }
+
         var sanitized = Sanitize(msg.Message).ToString();
         var whisper = msg.Voice == 1;
         if (_alertsMobs)
@@ -341,5 +353,4 @@ public class Plugin : BaseUnityPlugin
         else
             _speechBehavior!.Speak(sanitized, whisper);
     }
-    
 }

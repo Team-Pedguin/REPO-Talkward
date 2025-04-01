@@ -380,6 +380,11 @@ public abstract class TwitchIntegration
 
         // Subscribe to events we're interested in
         _eventSubClient.ChannelChatMessage += OnChannelChatMessage;
+        _eventSubClient.ChannelCheer += OnChannelCheer;
+        _eventSubClient.ChannelPointsAutomaticRewardRedemptionAdd += OnAutoRewardClaimed;
+        _eventSubClient.ChannelPointsCustomRewardRedemptionAdd += OnManualRewardClaimStarted;
+        _eventSubClient.ChannelPointsCustomRewardRedemptionUpdate += OnManualRewardClaimedOrRejected;
+        
         _eventSubClient.WebsocketConnected += OnWebsocketConnected;
         _eventSubClient.WebsocketDisconnected += OnWebsocketDisconnected;
         _eventSubClient.ErrorOccurred += OnErrorOccurred;
@@ -408,20 +413,131 @@ public abstract class TwitchIntegration
         }
     }
 
+    private Task OnManualRewardClaimedOrRejected(object sender, ChannelPointsCustomRewardRedemptionArgs e)
+    {
+        try
+        {
+            var notification = e.Notification;
+            var payload = notification.Payload;
+            var msgEvent = payload.Event;
+            if (msgEvent.Status != "fulfilled")
+                return Task.CompletedTask;
+            
+            var timestamp = notification.Metadata.MessageTimestamp;
+
+            // Store user display name
+            _names[msgEvent.UserLogin] = (msgEvent.UserName, DateTime.Now);
+
+            // Create a TwitchChatEventArgs and raise the event
+            var chatEventArgs = new TwitchChatEventArgs(msgEvent, timestamp);
+            Logger.LogMessage($"|Tw> [Auto-Reward] {msgEvent.UserName}: {msgEvent.UserInput}");
+
+            OnTwitchChatEvent?.Invoke(this, chatEventArgs);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error processing chat message: {ex.Message}");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnManualRewardClaimStarted(object sender, ChannelPointsCustomRewardRedemptionArgs e)
+    {
+        try
+        {
+            var notification = e.Notification;
+            var payload = notification.Payload;
+            var msgEvent = payload.Event;
+            if (msgEvent.Status != "fulfilled")
+                return Task.CompletedTask;
+            
+            var timestamp = notification.Metadata.MessageTimestamp;
+
+            // Store user display name
+            _names[msgEvent.UserLogin] = (msgEvent.UserName, DateTime.Now);
+
+            // Create a TwitchChatEventArgs and raise the event
+            var chatEventArgs = new TwitchChatEventArgs(msgEvent, timestamp);
+            Logger.LogMessage($"|Tw> [Manual Reward] {msgEvent.UserName}: {msgEvent.UserInput}");
+
+            OnTwitchChatEvent?.Invoke(this, chatEventArgs);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error processing chat message: {ex.Message}");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnAutoRewardClaimed(object sender, ChannelPointsAutomaticRewardRedemptionArgs e)
+    {
+        try
+        {
+            var notification = e.Notification;
+            var timestamp = notification.Metadata.MessageTimestamp;
+            var payload = notification.Payload;
+            var msgEvent = payload.Event;
+
+            // Store user display name
+            _names[msgEvent.UserLogin] = (msgEvent.UserName, DateTime.Now);
+
+            // Create a TwitchChatEventArgs and raise the event
+            var chatEventArgs = new TwitchChatEventArgs(msgEvent, timestamp);
+            Logger.LogMessage($"|Tw> [Manual Reward] {msgEvent.UserName}: {msgEvent.Message}");
+
+            OnTwitchChatEvent?.Invoke(this, chatEventArgs);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error processing chat message: {ex.Message}");
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnChannelCheer(object sender, ChannelCheerArgs e)
+    {
+        try
+        {
+            var notification = e.Notification;
+            var timestamp = notification.Metadata.MessageTimestamp;
+            var payload = notification.Payload;
+            var msgEvent = payload.Event;
+
+            // Store user display name
+            _names[msgEvent.UserLogin] = (msgEvent.UserName, DateTime.Now);
+
+            // Create a TwitchChatEventArgs and raise the event
+            var chatEventArgs = new TwitchChatEventArgs(msgEvent, timestamp);
+            Logger.LogMessage($"|Tw> [Cheer] {msgEvent.UserName}: {msgEvent.Message}");
+
+            OnTwitchChatEvent?.Invoke(this, chatEventArgs);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error processing chat message: {ex.Message}");
+        }
+
+        return Task.CompletedTask;
+    }
+
     private Task OnChannelChatMessage(object sender, ChannelChatMessageArgs e)
     {
         try
         {
-            EventSubNotification<ChannelChatMessage> notification = e.Notification;
-            EventSubNotificationPayload<ChannelChatMessage> payload = notification.Payload;
-            ChannelChatMessage chatMsg = payload.Event;
+            var notification = e.Notification;
+            var timestamp = notification.Metadata.MessageTimestamp;
+            var payload = notification.Payload;
+            var msgEvent = payload.Event;
 
             // Store user display name
-            _names[chatMsg.ChatterUserLogin] = (chatMsg.ChatterUserName, DateTime.Now);
+            _names[msgEvent.ChatterUserLogin] = (msgEvent.ChatterUserName, DateTime.Now);
 
             // Create a TwitchChatEventArgs and raise the event
-            var chatEventArgs = new TwitchChatEventArgs(chatMsg);
-            Logger.LogMessage($"|Tw> {chatMsg.ChatterUserName}: {chatMsg.Message.Text}");
+            var chatEventArgs = new TwitchChatEventArgs(msgEvent, timestamp);
+            Logger.LogMessage($"|Tw> {msgEvent.ChatterUserName}: {msgEvent.Message.Text}");
 
             OnTwitchChatEvent?.Invoke(this, chatEventArgs);
         }
@@ -454,14 +570,6 @@ public abstract class TwitchIntegration
                     {["broadcaster_user_id"] = _broadcasterId ?? chatterId, ["user_id"] = chatterId},
                 EventSubTransportMethod.Websocket,
                 websocketSessionId: _eventSubClient!.SessionId,
-                clientId: _api.Settings.ClientId,
-                accessToken: _api.Settings.AccessToken),
-            _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.chat.message", "1",
-                new Dictionary<string, string>
-                    {["broadcaster_user_id"] = _broadcasterId ?? chatterId, ["user_id"] = chatterId},
-                EventSubTransportMethod.Websocket,
-                websocketSessionId: _eventSubClient.SessionId,
                 clientId: _api.Settings.ClientId,
                 accessToken: _api.Settings.AccessToken),
             _api.Helix.EventSub.CreateEventSubSubscriptionAsync(
@@ -512,15 +620,16 @@ public abstract class TwitchIntegration
         }
     }
 
-    private Task OnWebsocketDisconnected(object sender, EventArgs e)
+    private async Task OnWebsocketDisconnected(object sender, EventArgs e)
     {
-        Logger.LogWarning("Disconnected from Twitch EventSub websocket. Attempting to reconnect...");
+        Logger.LogWarning("Disconnected from Twitch EventSub websocket. Scheduling reconnect...");
         ThreadPool.QueueUserWorkItem(_ =>
         {
-            Thread.Sleep(5000); // Wait before reconnecting
-            _eventSubClient?.ConnectAsync();
+            Thread.Sleep(250); // Wait before reconnecting
+            Logger.LogWarning("Attempting to reconnect to Twitch EventSub websocket...");
+            _eventSubClient!.ReconnectAsync()
+                .GetAwaiter().GetResult();
         });
-        return Task.CompletedTask;
     }
 
     private Task OnErrorOccurred(object sender, ErrorOccuredArgs e)
@@ -650,7 +759,6 @@ public abstract class TwitchIntegration
 
             if (_authorized)
                 AsyncWork().GetAwaiter().GetResult();
-
 
             try
             {

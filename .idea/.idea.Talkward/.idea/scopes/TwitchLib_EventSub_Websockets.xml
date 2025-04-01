@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="TwitchLib.EventSub.Websockets" pattern="(file:TwitchLib.EventSub.Websockets/TwitchLib.EventSub.Websockets//*||file:TwitchLib.EventSub.Websockets/LICENSE.txt||file:TwitchLib.EventSub.Websockets/README.md)&amp;&amp;!file:.*//*&amp;&amp;!file:*//.*&amp;&amp;!file:*//bin//*&amp;&amp;!file:*//obj//*" />
+</component>

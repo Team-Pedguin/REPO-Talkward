@@ -4,11 +4,10 @@
             DependsOnTargets="ResolveProjectReferences;ResolveAssemblyReferences"
             Returns="@(ReferenceCopyLocalPaths)" />
     
-    <Target Name="ILRepacker" AfterTargets="Build" BeforeTargets="Pack" DependsOnTargets="GenerateResolvedReferences">
+    <Target Name="ILRepacker" AfterTargets="Build" BeforeTargets="Pack" DependsOnTargets="ResolveAssemblyReferences;GenerateResolvedReferences">
         <!-- merge pdbs -->
-        <Message Text="NuGetPackageContentFile: %(NuGetPackageContentFile.Package)> %(NuGetPackageContentFile.Identity)" Importance="high"/>
-
-        <Message Text="ResolvedReference: %(ResolvedReference.Package)> %(ResolvedReference.Identity)" Importance="high"/>
+        <!--<Message Text="NuGetPackageContentFile: %(NuGetPackageContentFile.Package)> %(NuGetPackageContentFile.Identity)" Importance="high"/>
+        <Message Text="ResolvedReference: %(ResolvedReference.Package)> %(ResolvedReference.Identity)" Importance="high"/>-->
         <PropertyGroup>
             <IlRepackDebugInfo Condition="'$(DebugType)'!=''">true</IlRepackDebugInfo>
         </PropertyGroup>
@@ -19,11 +18,12 @@
                                    Condition="'%(NuGetPackageContentFile.Extension)'=='.dll' AND '%(NuGetPackageContentFile.AssetType)'=='compile'"/>
 
             <!-- any private refs -->
-            <IlRepackAssembly Include="@(ReferenceCopyLocalPaths)"
-                              Condition="$([System.String]::Copy('%(Identity)').EndsWith('.dll'))"/>
+            <IlRepackAssembly Include="@(ReferenceCopyLocalPaths)" Condition="%(Extension)=='.dll'">
+                <Package>%(Filename)</Package>  <!-- just a quick hack -->
+            </IlRepackAssembly>
             <!-- TwitchLib -->
             <IlRepackAssembly Include="@(NuGetPackageContentFile)"
-                              Condition="$([System.String]::Copy('%(Identity)').EndsWith('.dll')) AND $([System.String]::Copy('%(Package)').StartsWith('TwitchLib'))"/>
+                              Condition="%(Extension)=='.dll' AND $([System.String]::Copy('%(Package)').StartsWith('TwitchLib'))"/>
 
             <!-- set Name metadata for each -->
             <IlRepackAssembly Update="*">
@@ -40,12 +40,6 @@
         
         <!--<Message Text="IlRepackAssembly: @(IlRepackAssembly)" Importance="high"/>-->
         
-        <!-- move original dll into subdir -->
-        <MakeDir Directories="$(OutputPath)backup"/>
-        <Move SourceFiles="$(OutputPath)$(AssemblyName).dll"
-              DestinationFiles="$(OutputPath)backup\$(AssemblyName).dll"
-              ContinueOnError="true"/>
-        
         <!-- merge -->
         <ILRepack
                 Parallel="true"
@@ -53,19 +47,19 @@
                 NoRepackRes="true"
                 DebugInfo="$(IlRepackDebugInfo)"
                 TargetKind="Dll"
-                AttributeFile="$(OutputPath)backup\$(AssemblyName).dll"
-                InputAssemblies="$(OutputPath)backup\$(AssemblyName).dll;@(IlRepackAssembly)"
+                AttributeFile="$(OutputPath)$(AssemblyName).dll"
+                InputAssemblies="$(OutputPath)$(AssemblyName).dll;@(IlRepackAssembly)"
                 MergeIlLinkerFiles="true"
                 XmlDocumentation="true"
-                OutputFile="$(OutputPath)$(AssemblyName).Merged.dll"
+                OutputFile="$(OutputPath)$(PackageId).dll"
                 LibraryPath="@(IlRepackReferenceDir)"
                 CopyAttributes="false"
                 Union="true"
         />
         
-        <Move SourceFiles="$(OutputPath)$(AssemblyName).Merged.dll"
-              DestinationFiles="$(OutputPath)$(AssemblyName).dll"
-              ContinueOnError="true"/>
+        <ItemGroup>
+            <None Include="$(OutputPath)$(PackageId).dll" PackagePath="lib\$(TargetFramework)" Pack="true" />
+        </ItemGroup>
 
         <!-- report -->
         <Message Text="Merged: @(IlRepackAssembly->'%(Name)')" Importance="high" />

@@ -1,4 +1,5 @@
 [submodule "TwitchLib.EventSub.Websockets"]
 	path = TwitchLib.EventSub.Websockets
-	url = https://github.com/TwitchLib/TwitchLib.EventSub.Websockets.git
+	url = https://github.com/Team-Pedguin/TwitchLib.EventSub.Websockets.git
 	shallow = true
+	branch = 0.6.0-talkward

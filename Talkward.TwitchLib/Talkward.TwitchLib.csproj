@@ -2,16 +2,20 @@
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <Version>1.1.8</Version>
+        <Version>1.2.2</Version>
         <RootNamespace />
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageOutputPath>$(SolutionDir)nuget</PackageOutputPath>
+        <AssemblyName>Talkward.TwitchLib.Overrides</AssemblyName>
+        <AssemblyTitle>Talkward.TwitchLib</AssemblyTitle>
     </PropertyGroup>
 
     <PropertyGroup>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
         <NuspecProperties>version=$(Version)</NuspecProperties>
         <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-        
+
+        <Product>Talkward.TwitchLib</Product>
         <PackageId>Talkward.TwitchLib</PackageId>
         <Title>TwitchLib</Title>
         <Authors>Team-Pedguin</Authors>
@@ -53,11 +57,18 @@
         <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-e47ba7f" PrivateAssets="all" />
         <PackageReference Include="TwitchLib.Client" Version="4.0.0-preview-fd131763416cb9f1a31705ca609566d7e7e7fac8" PrivateAssets="all" />
         <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-f833b1ab1ebef37618dba3fbb1e0a661ff183af5" PrivateAssets="all" />
-        <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0-preview-dbc970c" PrivateAssets="all" Aliases="tlws" />
+        <!--<PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0-preview-dbc970c" PrivateAssets="all" Aliases="tlws" />-->
+        <PackageReference Include="TwitchLib.EventSub.Core" Version="2.5.3-preview-ce9df77" />
     </ItemGroup>
 
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets\TwitchLib.EventSub.Websockets.csproj" >
+          <Private>True</Private>
+      </ProjectReference>
     </ItemGroup>
     
     <Target Name="GenerateResolvedReferences"
@@ -88,15 +99,24 @@
             <ReferenceAssemblyName Include="System.Text.Json"/>
         </ItemGroup>
         <IdentifyCauseOfAssemblyReference
-                MessageImportance="high"
-                Verbose="true"
-                SourceAssemblyPaths="$(OutputPath)$(AssemblyName).dll"
+                SourceAssemblyPaths="$(OutputPath)$(PackageId).dll"
                 ReferenceAssemblyNames="@(ReferenceAssemblyName)">
             <Output TaskParameter="Causes" ItemName="AssemblyReferenceCause"/>
         </IdentifyCauseOfAssemblyReference>
-        <Message Text="AssemblyReferenceCauses: %(AssemblyReferenceCause.Description)" Importance="high"/>
+        
         <ItemGroup>
             <ReferenceAssemblyName Remove="@(ReferenceAssemblyName)"/>
+        </ItemGroup>
+        
+        <!-- report and fail if any unwanted assembly references were found -->
+        <Message Text="%(AssemblyReferenceCause.Description)"
+                 Importance="high" />
+        <Error Condition="'@(AssemblyReferenceCause->Count())' != '0'"
+               Text="Unwanted assembly references were found."/>
+        
+        <!-- clean up for the heck of it -->
+        <ItemGroup>
+            <AssemblyReferenceCause Remove="@(AssemblyReferenceCause)" />
         </ItemGroup>
     </Target>
 </Project>

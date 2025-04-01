@@ -10,9 +10,15 @@ public static class UnityThreadHelper
     static UnityThreadHelper()
     {
         if (UnitTestSignal.Active) return;
-        Type.GetType(nameof(UnityThreadHelperInitializer))!
-            .GetMethod(nameof(UnityThreadHelperInitializer.InitializeForUnity), BindingFlags.NonPublic|BindingFlags.Static)!
-            .Invoke(null, null);
+        InitializeForUnity();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void InitializeForUnity()
+    {
+        _loopRegistrar = new UnityPlayerLoopRegistrar();
+        _logger = Plugin.Logger;
+        _timeProvider = new UnityTimeProvider();
     }
 
     internal static ITimeProvider _timeProvider;

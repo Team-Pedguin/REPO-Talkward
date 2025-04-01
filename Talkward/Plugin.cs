@@ -1,10 +1,12 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Text;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx;
 using ExitGames.Client.Photon;
 using Photon.Voice.Unity;
 using REPOLib;
+using REPOLib.Commands;
 using REPOLib.Modules;
 using TMPro;
 using Unity.VisualScripting;
@@ -82,10 +84,21 @@ public class Plugin : BaseUnityPlugin
 
     private void Awake()
     {
+        Logger = base.Logger;
+
+        Logger?.LogInfo($"Loading {MyPluginInfo.PLUGIN_NAME} v{MyPluginInfo.PLUGIN_VERSION}...");
+        try
+        {
+            foreach (var mi in typeof(TalkwardCommand).GetMethods()
+                .Where(method => method.GetCustomAttribute<CommandInitializerAttribute>() != null))
+                Logger?.LogInfo($"Type-poking command initializer: {mi.Name}");
+        }
+        catch(Exception ex)
+        {
+            Logger?.LogError($"Failed to poke types: {ex}");
+        }
         UnityThreadHelper.Post(static _ => Logger?.LogInfo("UnityThreadHelper initialized"), null);
         UnityThreadHelper.Initialize();
-
-        Logger = base.Logger;
 
         if (Instance)
         {
@@ -202,7 +215,7 @@ public class Plugin : BaseUnityPlugin
 
         _twitchConfig = twitchConfig;
 
-        Logger.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
+        Logger?.LogInfo($"{MyPluginInfo.PLUGIN_NAME} is loaded!");
         
         UnityThreadHelper.Schedule(Time.unscaledTimeAsDouble + 10, _ =>
         {
